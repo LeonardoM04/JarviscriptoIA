@@ -1,0 +1,19 @@
+# Blueprint do Render — um serviço só (backend serve a interface).
+# No painel do Render: New > Blueprint > conecte o repositório do GitHub.
+# Depois preencha as variáveis marcadas como sync:false (chaves/senha).
+services:
+  - type: web
+    name: jarviscripto
+    runtime: node
+    plan: free
+    buildCommand: npm install --include=dev && npm run build --workspace=web && npm run build --workspace=server
+    startCommand: npm run start --workspace=server
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CRYPTOPANIC_TOKEN
+        sync: false
+      - key: APP_PASSWORD
+        sync: false
