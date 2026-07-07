@@ -9,9 +9,26 @@ export interface Candle {
   volume: number;
 }
 
+import { cached } from "./cache.js";
+import { getBinanceKlines, getBinanceTicker } from "./binance.js";
+
 const BASE = "https://api.bybit.com";
 
 export async function getKlines(
+  symbol: string,
+  interval: string,
+  limit = 500
+): Promise<Candle[]> {
+  return cached(`klines:${symbol}:${interval}:${limit}`, 30_000, async () => {
+    try {
+      return await getBybitKlines(symbol, interval, limit);
+    } catch {
+      return getBinanceKlines(symbol, interval, limit);
+    }
+  });
+}
+
+async function getBybitKlines(
   symbol: string,
   interval: string,
   limit = 500
@@ -42,6 +59,22 @@ export async function getKlines(
 }
 
 export async function getTicker(symbol: string): Promise<{
+  lastPrice: number;
+  price24hPcnt: number;
+  highPrice24h: number;
+  lowPrice24h: number;
+  volume24h: number;
+}> {
+  return cached(`ticker:${symbol}`, 30_000, async () => {
+    try {
+      return await getBybitTicker(symbol);
+    } catch {
+      return getBinanceTicker(symbol);
+    }
+  });
+}
+
+async function getBybitTicker(symbol: string): Promise<{
   lastPrice: number;
   price24hPcnt: number;
   highPrice24h: number;

@@ -2,6 +2,7 @@
 // dominância do mercado e fundamentos por moeda.
 
 import { cached } from "./cache.js";
+import { fallbackSymbolToId, getBinanceFallbackMarkets } from "./binance.js";
 
 const BASE = "https://api.coingecko.com/api/v3";
 
@@ -55,7 +56,11 @@ export function getMarkets(perPage = 100, page = 1): Promise<MarketCoin[]> {
     url.searchParams.set("price_change_percentage", "1h,24h,7d");
 
     const res = await fetch(url, { headers: cgHeaders() });
-    if (!res.ok) throw new Error(`CoinGecko HTTP ${res.status}`);
+    if (!res.ok) {
+      const fallback = await getBinanceFallbackMarkets();
+      if (fallback.length) return fallback;
+      throw new Error(`CoinGecko HTTP ${res.status}`);
+    }
     const rows: RawMarket[] = await res.json();
     return rows.map((r) => ({
       id: r.id,
@@ -84,7 +89,24 @@ export interface GlobalData {
 export function getGlobal(): Promise<GlobalData> {
   return cached("global", 180_000, async () => {
     const res = await fetch(`${BASE}/global`, { headers: cgHeaders() });
-    if (!res.ok) throw new Error(`CoinGecko HTTP ${res.status}`);
+    if (!res.ok) {
+      const markets = await getBinanceFallbackMarkets();
+      const total = markets.reduce((sum, m) => sum + m.market_cap, 0);
+      const btc = markets.find((m) => m.symbol === "btc")?.market_cap ?? 0;
+      const eth = markets.find((m) => m.symbol === "eth")?.market_cap ?? 0;
+      const marketCapChange24h = total
+        ? markets.reduce((sum, m) => sum + m.market_cap * (m.price_change_percentage_24h ?? 0), 0) / total
+        : 0;
+      if (total > 0) {
+        return {
+          totalMarketCapUsd: total,
+          marketCapChange24h,
+          btcDominance: (btc / total) * 100,
+          ethDominance: (eth / total) * 100,
+        };
+      }
+      throw new Error(`CoinGecko HTTP ${res.status}`);
+    }
     const { data } = await res.json();
     return {
       totalMarketCapUsd: data.total_market_cap.usd,
@@ -100,7 +122,7 @@ export async function symbolToId(symbol: string): Promise<string | null> {
   const base = symbol.replace(/USDT$/, "").toLowerCase();
   const markets = await getMarkets(250, 1);
   const match = markets.find((m) => m.symbol.toLowerCase() === base);
-  return match?.id ?? null;
+  return match?.id ?? fallbackSymbolToId(symbol);
 }
 
 export interface CoinDetail {
