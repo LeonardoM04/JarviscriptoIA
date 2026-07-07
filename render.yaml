@@ -15,5 +15,7 @@ services:
         sync: false
       - key: CRYPTOPANIC_TOKEN
         sync: false
+      - key: COINGECKO_KEY
+        sync: false
       - key: APP_PASSWORD
         sync: false

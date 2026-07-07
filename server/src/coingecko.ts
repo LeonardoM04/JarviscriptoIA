@@ -5,6 +5,15 @@ import { cached } from "./cache.js";
 
 const BASE = "https://api.coingecko.com/api/v3";
 
+// Chave Demo grátis da CoinGecko (autentica por chave, evita o bloqueio por IP
+// compartilhado do Render). Sem ela, cai no limite público (sujeito a 429).
+const CG_KEY = process.env.COINGECKO_KEY;
+const cgHeaders = (): Record<string, string> => {
+  const h: Record<string, string> = { accept: "application/json" };
+  if (CG_KEY) h["x-cg-demo-api-key"] = CG_KEY;
+  return h;
+};
+
 export interface MarketCoin {
   id: string;
   symbol: string; // "btc"
@@ -36,7 +45,7 @@ interface RawMarket {
 }
 
 export function getMarkets(perPage = 100, page = 1): Promise<MarketCoin[]> {
-  return cached(`markets:${perPage}:${page}`, 60_000, async () => {
+  return cached(`markets:${perPage}:${page}`, 180_000, async () => {
     const url = new URL(`${BASE}/coins/markets`);
     url.searchParams.set("vs_currency", "usd");
     url.searchParams.set("order", "market_cap_desc");
@@ -45,7 +54,7 @@ export function getMarkets(perPage = 100, page = 1): Promise<MarketCoin[]> {
     url.searchParams.set("sparkline", "true");
     url.searchParams.set("price_change_percentage", "1h,24h,7d");
 
-    const res = await fetch(url, { headers: { accept: "application/json" } });
+    const res = await fetch(url, { headers: cgHeaders() });
     if (!res.ok) throw new Error(`CoinGecko HTTP ${res.status}`);
     const rows: RawMarket[] = await res.json();
     return rows.map((r) => ({
@@ -73,8 +82,8 @@ export interface GlobalData {
 }
 
 export function getGlobal(): Promise<GlobalData> {
-  return cached("global", 60_000, async () => {
-    const res = await fetch(`${BASE}/global`, { headers: { accept: "application/json" } });
+  return cached("global", 180_000, async () => {
+    const res = await fetch(`${BASE}/global`, { headers: cgHeaders() });
     if (!res.ok) throw new Error(`CoinGecko HTTP ${res.status}`);
     const { data } = await res.json();
     return {
@@ -116,7 +125,7 @@ export function getCoinDetail(id: string): Promise<CoinDetail> {
     url.searchParams.set("market_data", "true");
     url.searchParams.set("community_data", "false");
     url.searchParams.set("developer_data", "false");
-    const res = await fetch(url, { headers: { accept: "application/json" } });
+    const res = await fetch(url, { headers: cgHeaders() });
     if (!res.ok) throw new Error(`CoinGecko HTTP ${res.status}`);
     const d = await res.json();
     const desc: string = d.description?.en || "";
