@@ -11,6 +11,7 @@ import { getNews } from "./news.js";
 import { computeIndicators, findLevels } from "./indicators.js";
 import { detectPatterns } from "./patterns.js";
 import { jarvisScore } from "./score.js";
+import { detectStructures } from "./structures.js";
 
 const MODEL = "claude-opus-4-8";
 
@@ -76,6 +77,7 @@ const SCHEMA = {
     tendencia: { type: "string", enum: ["alta", "baixa", "lateral"] },
     forca_tendencia: { type: "string", enum: ["fraca", "moderada", "forte"] },
     confluencia: { type: "string", description: "Onde os timeframes concordam ou divergem, e o que o gráfico mostra visualmente" },
+    leitura_de_ciclo: { type: "string", description: "Fase do ciclo de mercado (acumulação/alta/distribuição/depressão), sinais de possível reversão ou finalização de ciclo, estruturas visíveis (canal, diamante, lateralidade) e, se for BTC, contexto do halving" },
     tese: { type: "string", description: "A tese principal em 2-3 frases" },
     invalidacao: { type: "string", description: "O que precisaria acontecer para a tese estar errada" },
     sinais_alta: { type: "array", items: { type: "string" } },
@@ -99,7 +101,7 @@ const SCHEMA = {
     confianca: { type: "number", description: "0 a 100, calibrada e honesta" },
   },
   required: [
-    "veredito", "tendencia", "forca_tendencia", "confluencia", "tese", "invalidacao",
+    "veredito", "tendencia", "forca_tendencia", "confluencia", "leitura_de_ciclo", "tese", "invalidacao",
     "sinais_alta", "sinais_baixa", "derivativos_leitura", "noticias_impacto",
     "plano", "riscos", "recomendacao", "confianca",
   ],
@@ -138,6 +140,8 @@ export async function analyzeSymbol(symbol: string, opts: AnalyzeOptions = {}) {
     .map((nItem) => `- [${nItem.sentiment}] ${nItem.title} (${nItem.source})`)
     .join("\n") || "- sem notícias relevantes coletadas";
 
+  const struct = detectStructures(frames[2], symbol);
+  const halvingHint = struct.halvings.length ? ` | halving relevante no histórico recente` : ``;
   const contextText = [
     `Você é o Jarvis, um analista técnico de criptomoedas de elite. Faça a análise mais precisa e honesta possível de ${symbol}.`,
     `Pense como gestor de risco: primeiro o que pode dar errado, depois a oportunidade. Nunca prometa lucro. Seja específico com números.`,
@@ -151,6 +155,7 @@ export async function analyzeSymbol(symbol: string, opts: AnalyzeOptions = {}) {
         (deriv.buyRatio != null ? ` | contas long/short ${(deriv.buyRatio * 100).toFixed(0)}%/${((deriv.sellRatio ?? 0) * 100).toFixed(0)}%` : ``)
       : `- Derivativos: indisponíveis`,
     coinDetail ? `- Fundamentos: rank #${coinDetail.marketCapRank ?? "?"} | categorias: ${coinDetail.categories.join(", ") || "n/d"} | vs topo histórico: ${fmt(coinDetail.athChangePct)}%` : ``,
+    `- Leitura estrutural (heurística) do diário: fase de ciclo aparente = ${struct.cycle.phase}${halvingHint}`,
     ``,
     `## Análise técnica por timeframe`,
     summaries,
@@ -162,6 +167,7 @@ export async function analyzeSymbol(symbol: string, opts: AnalyzeOptions = {}) {
     `- Priorize CONFLUÊNCIA entre 1h, 4h e diário — sinais alinhados nos três valem muito mais.`,
     `- Cruze o técnico com derivativos: funding muito positivo + OI subindo = mercado esticado/risco de correção; proporção long/short muito desequilibrada costuma ser contra-indicador (excesso de longs = combustível para liquidação). Interprete isso como posicionamento das baleias/grandes players.`,
     opts.chartImageBase64 ? `- Você recebeu a IMAGEM do gráfico. USE-A: descreva o formato do preço (topos/fundos, linhas de tendência, rompimentos) que os números sozinhos não capturam.` : ``,
+    `- Em 'leitura_de_ciclo': avalie a fase do ciclo (acumulação/alta/distribuição/depressão), sinais de possível reversão ou finalização de ciclo, estruturas visíveis (canal, diamante/lateralidade) e — se for BTC — o contexto do halving. A heurística acima é só um ponto de partida; conclua pelos dados.`,
     `- No plano, dê números concretos (entrada, alvos, stop) coerentes com o preço atual de ${ticker.lastPrice}.`,
     `- Tamanho de posição sempre conservador. Responda em português.`,
   ].filter(Boolean).join("\n");

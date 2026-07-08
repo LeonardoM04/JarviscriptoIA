@@ -23,6 +23,9 @@ export interface Layers {
   rsi: boolean;
   macd: boolean;
   patterns: boolean;
+  trend: boolean;
+  channel: boolean;
+  halving: boolean;
 }
 
 export interface ChartHandle {
@@ -160,15 +163,48 @@ const Chart = forwardRef<ChartHandle, Props>(({ data, layers }, ref) => {
       );
     }
 
+    // ---- estruturas: linhas de tendência, canal, halving ----
+    const drawLine = (line: { p1: { time: number; price: number }; p2: { time: number; price: number } }, color: string, title: string, dashed = false) => {
+      const s = chart.addSeries(LineSeries, {
+        color, lineWidth: 2, lineStyle: dashed ? 2 : 0, title,
+        priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+      });
+      s.setData([
+        { time: line.p1.time as UTCTimestamp, value: line.p1.price },
+        { time: line.p2.time as UTCTimestamp, value: line.p2.price },
+      ]);
+    };
+
+    if (layers.trend) {
+      if (data.structures.trendUp) drawLine(data.structures.trendUp, "#2ebd85", "Tendência alta");
+      if (data.structures.trendDown) drawLine(data.structures.trendDown, "#e04f5f", "Tendência baixa");
+    }
+    if (layers.channel && data.structures.channel) {
+      drawLine(data.structures.channel.upper, "rgba(34,211,238,0.7)", "Canal", true);
+      drawLine(data.structures.channel.lower, "rgba(34,211,238,0.7)", "Canal", true);
+    }
+
+    // marcadores (padrões de vela + halving) — uma chamada só
+    const markers: SeriesMarker<Time>[] = [];
     if (layers.patterns) {
-      const markers: SeriesMarker<Time>[] = data.patterns.slice(-30).map((p) => ({
-        time: p.time as UTCTimestamp,
-        position: p.direction === "bearish" ? "aboveBar" : "belowBar",
-        color: p.direction === "bullish" ? "#2ebd85" : p.direction === "bearish" ? "#e04f5f" : "#fbbf24",
-        shape: p.direction === "bullish" ? "arrowUp" : p.direction === "bearish" ? "arrowDown" : "circle",
-        text: p.name,
-        size: 1,
-      }));
+      for (const p of data.patterns.slice(-30)) {
+        markers.push({
+          time: p.time as UTCTimestamp,
+          position: p.direction === "bearish" ? "aboveBar" : "belowBar",
+          color: p.direction === "bullish" ? "#2ebd85" : p.direction === "bearish" ? "#e04f5f" : "#fbbf24",
+          shape: p.direction === "bullish" ? "arrowUp" : p.direction === "bearish" ? "arrowDown" : "circle",
+          text: p.name,
+          size: 1,
+        });
+      }
+    }
+    if (layers.halving) {
+      for (const h of data.structures.halvings) {
+        markers.push({ time: h as UTCTimestamp, position: "aboveBar", color: "#f59e0b", shape: "circle", text: "⛏ Halving", size: 2 });
+      }
+    }
+    if (markers.length) {
+      markers.sort((a, b) => (a.time as number) - (b.time as number));
       createSeriesMarkers(candleSeries, markers);
     }
 

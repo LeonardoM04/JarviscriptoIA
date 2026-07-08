@@ -7,6 +7,7 @@ import { getKlines, getTicker, getFearGreed } from "./bybit.js";
 import { computeIndicators } from "./indicators.js";
 import { detectPatterns } from "./patterns.js";
 import { jarvisScore } from "./score.js";
+import { detectStructures } from "./structures.js";
 import { analyzeSymbol } from "./analysis.js";
 import { getMarkets, getGlobal, getCoinDetail, symbolToId } from "./coingecko.js";
 import { getDerivatives } from "./derivatives.js";
@@ -51,7 +52,8 @@ app.get("/api/klines", handle(async (req, res) => {
   const indicators = computeIndicators(candles);
   const patterns = detectPatterns(candles);
   const score = jarvisScore(candles);
-  res.json({ symbol, interval, candles, indicators, patterns, score });
+  const structures = detectStructures(candles, symbol);
+  res.json({ symbol, interval, candles, indicators, patterns, score, structures });
 }));
 
 app.get("/api/ticker", handle(async (req, res) => {

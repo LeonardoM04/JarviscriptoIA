@@ -147,6 +147,7 @@ a { color: inherit; text-decoration: none; }
 }
 .score-badge b { font-size: 14px; }
 .score-momentum { color: var(--text-dim); }
+.cycle-badge { display: inline-flex; align-items: center; border: 1px solid; border-radius: 20px; padding: 3px 10px; font-size: 12px; cursor: help; }
 
 .coin-body { display: grid; grid-template-columns: 1fr 380px; gap: 16px; align-items: start; }
 .chart-col { display: flex; flex-direction: column; gap: 10px; }

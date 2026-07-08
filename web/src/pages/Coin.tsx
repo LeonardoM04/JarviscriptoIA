@@ -18,14 +18,20 @@ const INTERVALS = [
 ];
 
 const DEFAULT_LAYERS: Layers = {
-  ema21: false, ema50: true, ema200: false, bollinger: false, volume: true, rsi: false, macd: false, patterns: false,
+  ema21: false, ema50: true, ema200: false, bollinger: false, volume: true, rsi: false, macd: false,
+  patterns: false, trend: false, channel: false, halving: false,
 };
 
 const LAYER_LABELS: { key: keyof Layers; label: string }[] = [
   { key: "ema21", label: "EMA 21" }, { key: "ema50", label: "EMA 50" }, { key: "ema200", label: "EMA 200" },
   { key: "bollinger", label: "Bollinger" }, { key: "volume", label: "Volume" }, { key: "rsi", label: "RSI" },
   { key: "macd", label: "MACD" }, { key: "patterns", label: "Padrões" },
+  { key: "trend", label: "Tendências" }, { key: "channel", label: "Canal" }, { key: "halving", label: "Halving" },
 ];
+
+const cycleColor: Record<string, string> = {
+  alta: "#2ebd85", acumulação: "#22d3ee", distribuição: "#fbbf24", depressão: "#e04f5f",
+};
 
 type Tab = "analise" | "baleias" | "noticias" | "fundamentos";
 
@@ -123,6 +129,12 @@ export default function Coin() {
         <div className="coin-title">
           <h1>{symbol.replace(/USDT$/, "")}<span className="dim">/USDT</span></h1>
           {klines && <ScoreBadge score={klines.score} />}
+          {klines?.structures?.cycle && (
+            <span className="cycle-badge" title={klines.structures.cycle.note}
+              style={{ borderColor: cycleColor[klines.structures.cycle.phase] || "var(--border)", color: cycleColor[klines.structures.cycle.phase] || "var(--text-dim)" }}>
+              ciclo: {klines.structures.cycle.phase}
+            </span>
+          )}
         </div>
         {displayPrice !== null && (
           <div className="coin-price">

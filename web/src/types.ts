@@ -30,6 +30,17 @@ export interface Score {
   label: string;
 }
 
+export interface Point { time: number; price: number; }
+export interface Line { p1: Point; p2: Point; }
+
+export interface Structures {
+  trendUp: Line | null;
+  trendDown: Line | null;
+  channel: { upper: Line; lower: Line } | null;
+  halvings: number[];
+  cycle: { phase: string; note: string };
+}
+
 export interface KlinesResponse {
   symbol: string;
   interval: string;
@@ -37,6 +48,7 @@ export interface KlinesResponse {
   indicators: Indicators;
   patterns: PatternHit[];
   score: Score;
+  structures: Structures;
 }
 
 export interface Ticker {
@@ -119,6 +131,7 @@ export interface Analysis {
   tendencia: "alta" | "baixa" | "lateral";
   forca_tendencia: "fraca" | "moderada" | "forte";
   confluencia: string;
+  leitura_de_ciclo: string;
   tese: string;
   invalidacao: string;
   sinais_alta: string[];

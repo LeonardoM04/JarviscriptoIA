@@ -62,6 +62,9 @@ export default function AnalysisPanel({ result, loading, error, onAnalyze }: Pro
           <h4>Confluência entre timeframes</h4>
           <p>{result.analysis.confluencia}</p>
 
+          <h4>Leitura de ciclo</h4>
+          <p>{result.analysis.leitura_de_ciclo}</p>
+
           <div className="signals">
             <div>
               <h5 className="up">Sinais de alta</h5>
