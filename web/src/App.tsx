@@ -9,12 +9,14 @@ import Simulator from "./pages/Simulator";
 import Stocks from "./pages/Stocks";
 import Stock from "./pages/Stock";
 import Login from "./components/Login";
+import Splash from "./components/Splash";
 import { checkAuth } from "./api";
 
 type AuthState = "checking" | "authed" | "login";
 
 export default function App() {
   const [auth, setAuth] = useState<AuthState>("checking");
+  const [booted, setBooted] = useState(false);
 
   useEffect(() => {
     checkAuth().then((ok) => setAuth(ok ? "authed" : "login"));
@@ -24,10 +26,13 @@ export default function App() {
   }, []);
 
   if (auth === "checking") {
-    return <div className="boot">Carregando…</div>;
+    return <div className="boot" />;
   }
   if (auth === "login") {
     return <Login onOk={() => setAuth("authed")} />;
+  }
+  if (!booted) {
+    return <Splash onDone={() => setBooted(true)} />;
   }
 
   return (

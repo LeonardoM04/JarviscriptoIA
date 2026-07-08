@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import {
   createChart,
   createSeriesMarkers,
@@ -48,6 +48,7 @@ const Chart = forwardRef<ChartHandle, Props>(({ data, layers }, ref) => {
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const lastTimeRef = useRef<number>(0);
+  const [clicked, setClicked] = useState<{ candle: Candle; patterns: string[] } | null>(null);
 
   useImperativeHandle(ref, () => ({
     screenshot: () => {
@@ -187,14 +188,14 @@ const Chart = forwardRef<ChartHandle, Props>(({ data, layers }, ref) => {
     // marcadores (padrões de vela + halving) — uma chamada só
     const markers: SeriesMarker<Time>[] = [];
     if (layers.patterns) {
-      for (const p of data.patterns.slice(-30)) {
+      // marcadores minimalistas (sem texto) — o nome do padrão aparece ao clicar na vela
+      for (const p of data.patterns.slice(-40)) {
         markers.push({
           time: p.time as UTCTimestamp,
           position: p.direction === "bearish" ? "aboveBar" : "belowBar",
           color: p.direction === "bullish" ? "#2ebd85" : p.direction === "bearish" ? "#e04f5f" : "#fbbf24",
           shape: p.direction === "bullish" ? "arrowUp" : p.direction === "bearish" ? "arrowDown" : "circle",
-          text: p.name,
-          size: 1,
+          size: 0,
         });
       }
     }
@@ -243,6 +244,17 @@ const Chart = forwardRef<ChartHandle, Props>(({ data, layers }, ref) => {
 
     chart.timeScale().fitContent();
 
+    // clicar numa vela → mostra OHLC, data/hora e padrão (se houver)
+    setClicked(null);
+    chart.subscribeClick((param) => {
+      const t = param.time as number | undefined;
+      if (t == null) { setClicked(null); return; }
+      const candle = data.candles.find((c) => c.time === t);
+      if (!candle) { setClicked(null); return; }
+      const pats = data.patterns.filter((p) => p.time === t).map((p) => p.name);
+      setClicked({ candle, patterns: pats });
+    });
+
     return () => {
       chart.remove();
       chartRef.current = null;
@@ -250,7 +262,33 @@ const Chart = forwardRef<ChartHandle, Props>(({ data, layers }, ref) => {
     };
   }, [data, layers]);
 
-  return <div ref={containerRef} className="chart-container" />;
+  const fmtNum = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: v < 1 ? 6 : 2 });
+  const chg = clicked ? ((clicked.candle.close - clicked.candle.open) / clicked.candle.open) * 100 : 0;
+
+  return (
+    <div className="chart-host">
+      <div ref={containerRef} className="chart-container" />
+      {clicked && (
+        <div className="candle-info">
+          <button className="candle-info-close" onClick={() => setClicked(null)}>×</button>
+          <div className="candle-info-date">
+            {new Date(clicked.candle.time * 1000).toLocaleString("pt-BR", { dateStyle: "medium", timeStyle: "short" })}
+          </div>
+          <div className="candle-info-grid">
+            <span>Abertura</span><b>{fmtNum(clicked.candle.open)}</b>
+            <span>Máxima</span><b>{fmtNum(clicked.candle.high)}</b>
+            <span>Mínima</span><b>{fmtNum(clicked.candle.low)}</b>
+            <span>Fechamento</span><b className={chg >= 0 ? "up" : "down"}>{fmtNum(clicked.candle.close)}</b>
+            <span>Variação</span><b className={chg >= 0 ? "up" : "down"}>{chg >= 0 ? "+" : ""}{chg.toFixed(2)}%</b>
+            <span>Volume</span><b>{clicked.candle.volume.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</b>
+          </div>
+          <div className="candle-info-pat">
+            {clicked.patterns.length ? clicked.patterns.map((p) => <span key={p} className="pat-chip">{p}</span>) : <span className="dim">Nenhum padrão nesta vela</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 });
 
 Chart.displayName = "Chart";

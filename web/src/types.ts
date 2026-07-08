@@ -165,8 +165,16 @@ export interface StockGroupData {
   stocks: StockQuote[];
 }
 
+export interface StockNewsItem {
+  title: string;
+  url: string;
+  source: string;
+  publishedAt: string;
+}
+
 export interface StockDetail extends KlinesResponse {
   quote: { price: number; changePct: number; currency: string };
+  news: StockNewsItem[];
 }
 
 export interface AnalyzeResponse {

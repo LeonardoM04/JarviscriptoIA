@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { setPassword } from "../auth";
 import { checkAuth } from "../api";
+import Logo from "./Logo";
 
 export default function Login({ onOk }: { onOk: () => void }) {
   const [pwd, setPwd] = useState("");
@@ -22,8 +23,8 @@ export default function Login({ onOk }: { onOk: () => void }) {
     <div className="login-screen">
       <form className="login-card" onSubmit={submit}>
         <div className="login-brand">
-          <span className="logo">⚡</span>
-          <span>Jarvis<span className="accent">Cripto</span></span>
+          <Logo size={48} />
+          <span>Quad<span className="accent">₿</span>lock <span className="dim">Capital</span></span>
         </div>
         <p className="login-sub">Acesso restrito. Digite a senha do grupo.</p>
         <input

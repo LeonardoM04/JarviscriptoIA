@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { fetchTicker } from "../api";
+import { fetchTicker, fetchStock } from "../api";
 import {
   computeMetrics,
   livePnl,
   loadPositions,
   savePositions,
+  type AssetType,
   type Direction,
   type PaperPosition,
   type SimInputs,
@@ -14,6 +15,7 @@ import { money, pct } from "../utils";
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 export default function Simulator() {
+  const [assetType, setAssetType] = useState<AssetType>("cripto");
   const [symbol, setSymbol] = useState("BTC");
   const [direction, setDirection] = useState<Direction>("long");
   const [entry, setEntry] = useState<number>(0);
@@ -26,14 +28,23 @@ export default function Simulator() {
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [priceLoading, setPriceLoading] = useState(false);
 
-  const norm = (s: string) => (s.toUpperCase().replace(/USDT$/, "") + "USDT");
+  const norm = (s: string, type: AssetType = assetType) =>
+    type === "acao" ? s.toUpperCase().trim() : s.toUpperCase().replace(/USDT$/, "") + "USDT";
+
+  const getPrice = async (sym: string, type: AssetType): Promise<number> => {
+    if (type === "acao") {
+      const s = await fetchStock(sym, "D");
+      return s.quote.price;
+    }
+    const { ticker } = await fetchTicker(sym);
+    return ticker.lastPrice;
+  };
 
   // buscar preço atual do símbolo digitado (preenche entrada/alvo/stop)
-  const loadPrice = async () => {
+  const loadPrice = async (type: AssetType = assetType) => {
     setPriceLoading(true);
     try {
-      const { ticker } = await fetchTicker(norm(symbol));
-      const p = ticker.lastPrice;
+      const p = await getPrice(norm(symbol, type), type);
       setEntry(p);
       setTarget(Number((p * 1.05).toPrecision(6)));
       setStop(Number((p * 0.97).toPrecision(6)));
@@ -44,6 +55,25 @@ export default function Simulator() {
     }
   };
 
+  const switchAssetType = (type: AssetType) => {
+    setAssetType(type);
+    const defaults = { cripto: "BTC", acao: "NVDA" };
+    setSymbol(defaults[type]);
+    if (type === "acao" && leverage > 10) setLeverage(5);
+    setTimeout(() => {
+      // recarrega preço com o símbolo padrão do tipo
+      (async () => {
+        setPriceLoading(true);
+        try {
+          const p = await getPrice(norm(defaults[type], type), type);
+          setEntry(p);
+          setTarget(Number((p * 1.05).toPrecision(6)));
+          setStop(Number((p * 0.97).toPrecision(6)));
+        } catch { /* ignora */ } finally { setPriceLoading(false); }
+      })();
+    }, 0);
+  };
+
   useEffect(() => {
     loadPrice();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -51,18 +81,22 @@ export default function Simulator() {
 
   // preços ao vivo das posições abertas (atualiza a cada 15s)
   useEffect(() => {
-    const symbols = [...new Set(positions.filter((p) => p.status === "aberta").map((p) => p.symbol))];
-    if (!symbols.length) return;
+    const open = positions.filter((p) => p.status === "aberta");
+    const uniq = new Map(open.map((p) => [p.symbol, (p.assetType ?? "cripto") as AssetType]));
+    if (!uniq.size) return;
     let active = true;
     const load = async () => {
       const entries = await Promise.all(
-        symbols.map((s) => fetchTicker(s).then((t) => [s, t.ticker.lastPrice] as const).catch(() => null))
+        [...uniq.entries()].map(([s, type]) =>
+          getPrice(s, type).then((price) => [s, price] as const).catch(() => null)
+        )
       );
       if (active) setPrices((prev) => ({ ...prev, ...Object.fromEntries(entries.filter(Boolean) as [string, number][]) }));
     };
     load();
     const id = setInterval(load, 15000);
     return () => { active = false; clearInterval(id); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [positions]);
 
   const inputs: SimInputs = { symbol: norm(symbol), direction, entry, margin, leverage, target, stop };
@@ -73,7 +107,7 @@ export default function Simulator() {
   const openPosition = () => {
     if (m.warning || !entry || !margin) return;
     const pos: PaperPosition = {
-      id: uid(), symbol: norm(symbol), direction, entry, margin, leverage, target, stop,
+      id: uid(), symbol: norm(symbol), assetType, direction, entry, margin, leverage, target, stop,
       qty: m.qty, liquidation: m.liquidation, openedAt: new Date().toISOString(), status: "aberta",
     };
     persist([pos, ...positions]);
@@ -105,10 +139,18 @@ export default function Simulator() {
         {/* ---- calculadora ---- */}
         <div className="sim-calc">
           <div className="sim-row">
-            <label>Par
+            <label>Tipo de ativo
+              <div className="dir-toggle">
+                <button className={assetType === "cripto" ? "on long" : ""} onClick={() => switchAssetType("cripto")}>Cripto</button>
+                <button className={assetType === "acao" ? "on long" : ""} onClick={() => switchAssetType("acao")}>Ação</button>
+              </div>
+            </label>
+          </div>
+          <div className="sim-row">
+            <label>{assetType === "acao" ? "Ticker (ex.: NVDA, IONQ)" : "Par"}
               <div className="sim-symbol">
                 <input value={symbol} onChange={(e) => setSymbol(e.target.value)} spellCheck={false} />
-                <button onClick={loadPrice} disabled={priceLoading}>{priceLoading ? "…" : "preço atual"}</button>
+                <button onClick={() => loadPrice()} disabled={priceLoading}>{priceLoading ? "…" : "preço atual"}</button>
               </div>
             </label>
             <label>Direção
@@ -125,7 +167,7 @@ export default function Simulator() {
           </div>
           <div className="sim-row">
             <label>Alavancagem: <b>{leverage}x</b>
-              <input type="range" min={1} max={125} value={leverage} onChange={(e) => setLeverage(Number(e.target.value))} />
+              <input type="range" min={1} max={assetType === "acao" ? 10 : 125} value={leverage} onChange={(e) => setLeverage(Number(e.target.value))} />
             </label>
           </div>
           <div className="sim-row">

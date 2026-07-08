@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import Logo from "./Logo";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: "◎", end: true },
@@ -23,9 +24,9 @@ export default function Layout() {
     <div className="layout">
       <aside className="sidebar">
         <div className="brand">
-          <span className="logo">⚡</span>
+          <Logo size={30} className="brand-logo" />
           <span className="brand-name">
-            Jarvis<span className="accent">Cripto</span>
+            Quad<span className="accent">₿</span>lock
           </span>
         </div>
         <form className="side-search" onSubmit={search}>

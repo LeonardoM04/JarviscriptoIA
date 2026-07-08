@@ -75,9 +75,12 @@ export function livePnl(p: PaperPosition, price: number): { pnl: number; roi: nu
 }
 
 // ---- armazenamento local (por navegador) ----
+export type AssetType = "cripto" | "acao";
+
 export interface PaperPosition {
   id: string;
   symbol: string;
+  assetType?: AssetType; // posições antigas (sem o campo) são cripto
   direction: Direction;
   entry: number;
   margin: number;

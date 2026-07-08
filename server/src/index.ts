@@ -8,11 +8,11 @@ import { computeIndicators } from "./indicators.js";
 import { detectPatterns } from "./patterns.js";
 import { jarvisScore } from "./score.js";
 import { detectStructures } from "./structures.js";
-import { analyzeSymbol } from "./analysis.js";
+import { analyzeSymbol, analyzeStock } from "./analysis.js";
 import { getMarkets, getGlobal, getCoinDetail, symbolToId } from "./coingecko.js";
 import { getDerivatives } from "./derivatives.js";
 import { getNews } from "./news.js";
-import { getStockGroups, getStockChart } from "./stocks.js";
+import { getStockGroups, getStockChart, getStockNews } from "./stocks.js";
 
 const app = express();
 app.use(express.json({ limit: "8mb" }));
@@ -100,15 +100,27 @@ app.get("/api/stocks", handle(async (_req, res) => {
 app.get("/api/stock/:symbol", handle(async (req, res) => {
   const symbol = String(req.params.symbol).toUpperCase();
   const interval = String(req.query.interval || "D");
-  const chart = await getStockChart(symbol, interval);
+  const [chart, news] = await Promise.all([
+    getStockChart(symbol, interval),
+    getStockNews(symbol).catch(() => []),
+  ]);
   const indicators = computeIndicators(chart.candles);
   const patterns = detectPatterns(chart.candles);
   const score = jarvisScore(chart.candles);
   const structures = detectStructures(chart.candles, symbol);
   res.json({
-    symbol, interval, candles: chart.candles, indicators, patterns, score, structures,
+    symbol, interval, candles: chart.candles, indicators, patterns, score, structures, news,
     quote: { price: chart.price, changePct: chart.changePct, currency: chart.currency },
   });
+}));
+
+app.post("/api/analyze-stock", handle(async (req, res) => {
+  const symbol = String(req.body?.symbol || "NVDA").toUpperCase();
+  const chartImageBase64 = typeof req.body?.chartImage === "string"
+    ? req.body.chartImage.replace(/^data:image\/png;base64,/, "")
+    : undefined;
+  const result = await analyzeStock(symbol, { chartImageBase64 });
+  res.json(result);
 }));
 
 // ---- notícias ----

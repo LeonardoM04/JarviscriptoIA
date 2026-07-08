@@ -86,3 +86,11 @@ export function requestAnalysis(symbol: string, chartImage?: string) {
     body: JSON.stringify({ symbol, chartImage }),
   }).then((r) => handle<AnalyzeResponse>(r));
 }
+
+export function requestStockAnalysis(symbol: string, chartImage?: string) {
+  return req(`/api/analyze-stock`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ symbol, chartImage }),
+  }).then((r) => handle<AnalyzeResponse>(r));
+}

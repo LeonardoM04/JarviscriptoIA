@@ -37,6 +37,42 @@ export const STOCK_GROUPS: StockGroup[] = [
       { symbol: "SMCI", name: "Super Micro" },
     ],
   },
+  {
+    id: "semicondutores",
+    label: "Semicondutores",
+    tickers: [
+      { symbol: "AVGO", name: "Broadcom" },
+      { symbol: "ARM", name: "Arm Holdings" },
+      { symbol: "QCOM", name: "Qualcomm" },
+      { symbol: "INTC", name: "Intel" },
+      { symbol: "MU", name: "Micron" },
+      { symbol: "ASML", name: "ASML" },
+    ],
+  },
+  {
+    id: "cripto-bolsa",
+    label: "Cripto na Bolsa",
+    tickers: [
+      { symbol: "COIN", name: "Coinbase" },
+      { symbol: "MSTR", name: "Strategy (MicroStrategy)" },
+      { symbol: "HOOD", name: "Robinhood" },
+      { symbol: "MARA", name: "MARA Holdings" },
+      { symbol: "RIOT", name: "Riot Platforms" },
+      { symbol: "CLSK", name: "CleanSpark" },
+    ],
+  },
+  {
+    id: "bigtech",
+    label: "Big Tech & Crescimento",
+    tickers: [
+      { symbol: "AAPL", name: "Apple" },
+      { symbol: "AMZN", name: "Amazon" },
+      { symbol: "TSLA", name: "Tesla" },
+      { symbol: "NFLX", name: "Netflix" },
+      { symbol: "ORCL", name: "Oracle" },
+      { symbol: "CRM", name: "Salesforce" },
+    ],
+  },
 ];
 
 const YF = "https://query1.finance.yahoo.com/v8/finance/chart";
@@ -102,6 +138,32 @@ export interface StockQuote {
   changePct: number;
   currency: string;
   sparkline: number[];
+}
+
+// Notícias da ação via busca do Yahoo Finance (keyless)
+export interface StockNews {
+  title: string;
+  url: string;
+  source: string;
+  publishedAt: string;
+}
+
+export function getStockNews(symbol: string): Promise<StockNews[]> {
+  return cached(`stocknews:${symbol}`, 300_000, async () => {
+    const url = new URL("https://query1.finance.yahoo.com/v1/finance/search");
+    url.searchParams.set("q", symbol.toUpperCase());
+    url.searchParams.set("newsCount", "10");
+    url.searchParams.set("quotesCount", "0");
+    const res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0", accept: "application/json" } });
+    if (!res.ok) throw new Error(`Yahoo HTTP ${res.status}`);
+    const data = await res.json();
+    return (data?.news ?? []).map((n: any): StockNews => ({
+      title: n.title,
+      url: n.link,
+      source: n.publisher || "Yahoo Finance",
+      publishedAt: n.providerPublishTime ? new Date(n.providerPublishTime * 1000).toISOString() : new Date().toISOString(),
+    }));
+  });
 }
 
 export function getStockGroups(): Promise<{ id: string; label: string; stocks: StockQuote[] }[]> {

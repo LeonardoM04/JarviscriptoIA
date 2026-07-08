@@ -12,6 +12,7 @@ import { computeIndicators, findLevels } from "./indicators.js";
 import { detectPatterns } from "./patterns.js";
 import { jarvisScore } from "./score.js";
 import { detectStructures } from "./structures.js";
+import { getStockChart, getStockNews } from "./stocks.js";
 
 const MODEL = "claude-opus-4-8";
 
@@ -209,6 +210,106 @@ export async function analyzeSymbol(symbol: string, opts: AnalyzeOptions = {}) {
     coinDetail,
     news: news.slice(0, 8),
     score,
+    usedVision: Boolean(opts.chartImageBase64),
+    analysis: JSON.parse(textBlock.text),
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+// ---------- Análise de AÇÕES (mesmo motor, contexto de bolsa) ----------
+
+const STOCK_TIMEFRAMES: { interval: string; label: string }[] = [
+  { interval: "60", label: "1 hora" },
+  { interval: "D", label: "diário" },
+  { interval: "W", label: "semanal" },
+];
+
+export async function analyzeStock(symbol: string, opts: AnalyzeOptions = {}) {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error(
+      "ANTHROPIC_API_KEY não configurada. Copie server/.env.example para server/.env e adicione sua chave."
+    );
+  }
+  const client = new Anthropic();
+  const sym = symbol.toUpperCase();
+
+  const [charts, stockNews] = await Promise.all([
+    Promise.all(STOCK_TIMEFRAMES.map((tf) => getStockChart(sym, tf.interval))),
+    getStockNews(sym).catch(() => []),
+  ]);
+  const frames = charts.map((c) => c.candles);
+  const quote = charts[1]; // diário traz o preço de referência
+
+  const summaries = STOCK_TIMEFRAMES.map((tf, i) => timeframeSummary(tf.label, frames[i])).join("\n\n");
+  const newsLines = stockNews.slice(0, 8).map((n) => `- ${n.title} (${n.source})`).join("\n") ||
+    "- sem notícias relevantes coletadas";
+  const struct = detectStructures(frames[1], sym);
+
+  const contextText = [
+    `Você é o Jarvis, analista de elite de AÇÕES (mercado de bolsa americano). Faça a análise mais precisa e honesta possível de ${sym}.`,
+    `Pense como gestor de risco: primeiro o que pode dar errado, depois a oportunidade. Nunca prometa lucro. Seja específico com números.`,
+    ``,
+    `## Contexto`,
+    `- Preço atual: ${quote.price} ${quote.currency} | variação do dia: ${quote.changePct.toFixed(2)}%`,
+    `- Leitura estrutural (heurística) do diário: fase de ciclo aparente = ${struct.cycle.phase}`,
+    ``,
+    `## Análise técnica por timeframe`,
+    summaries,
+    ``,
+    `## Notícias recentes sobre a empresa`,
+    newsLines,
+    ``,
+    `## Instruções`,
+    `- Priorize CONFLUÊNCIA entre 1h, diário e semanal.`,
+    `- Ações não têm funding/open interest: em 'derivativos_leitura' comente volume e participação institucional aparente, ou diga que não se aplica.`,
+    `- Considere o contexto do setor (quântica/IA/semicondutores/cripto na bolsa) e o peso das notícias em 'noticias_impacto'.`,
+    `- Em 'leitura_de_ciclo': fase do ciclo, sinais de reversão/finalização, estruturas (canal, lateralidade, diamante).`,
+    opts.chartImageBase64 ? `- Você recebeu a IMAGEM do gráfico. USE-A: descreva o formato do preço que os números não capturam.` : ``,
+    `- No plano, dê números concretos coerentes com o preço atual de ${quote.price}. Lembre que ações negociam em horário de pregão.`,
+    `- Tamanho de posição sempre conservador. Responda em português.`,
+  ].filter(Boolean).join("\n");
+
+  const content: Anthropic.ContentBlockParam[] = [];
+  if (opts.chartImageBase64) {
+    content.push({
+      type: "image",
+      source: { type: "base64", media_type: "image/png", data: opts.chartImageBase64 },
+    });
+  }
+  content.push({ type: "text", text: contextText });
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 20000,
+    thinking: { type: "adaptive" },
+    output_config: {
+      effort: "xhigh",
+      format: { type: "json_schema", schema: SCHEMA as unknown as Record<string, unknown> },
+    },
+    messages: [{ role: "user", content }],
+  });
+
+  if (response.stop_reason === "refusal") {
+    throw new Error("A análise foi recusada pelo modelo. Tente novamente.");
+  }
+  const textBlock = response.content.find((b) => b.type === "text");
+  if (!textBlock || textBlock.type !== "text") throw new Error("Resposta inesperada do modelo.");
+
+  return {
+    symbol: sym,
+    ticker: {
+      lastPrice: quote.price,
+      price24hPcnt: quote.changePct,
+      highPrice24h: quote.price,
+      lowPrice24h: quote.price,
+      volume24h: 0,
+    },
+    fearGreed: null,
+    derivatives: { available: false, fundingRate: null, openInterest: null, openInterestValueUsd: null, oiTrend: null, buyRatio: null, sellRatio: null },
+    global: null,
+    coinDetail: null,
+    news: stockNews.slice(0, 8).map((n) => ({ ...n, currencies: [], sentiment: "neutro" as const })),
+    score: jarvisScore(frames[1]),
     usedVision: Boolean(opts.chartImageBase64),
     analysis: JSON.parse(textBlock.text),
     generatedAt: new Date().toISOString(),
