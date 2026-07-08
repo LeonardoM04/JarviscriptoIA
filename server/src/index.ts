@@ -12,6 +12,7 @@ import { analyzeSymbol } from "./analysis.js";
 import { getMarkets, getGlobal, getCoinDetail, symbolToId } from "./coingecko.js";
 import { getDerivatives } from "./derivatives.js";
 import { getNews } from "./news.js";
+import { getStockGroups, getStockChart } from "./stocks.js";
 
 const app = express();
 app.use(express.json({ limit: "8mb" }));
@@ -88,6 +89,26 @@ app.get("/api/coin/:symbol", handle(async (req, res) => {
     getDerivatives(symbol),
   ]);
   res.json({ symbol, detail, news, derivatives });
+}));
+
+// ---- ações (quântica + IA) ----
+app.get("/api/stocks", handle(async (_req, res) => {
+  const groups = await getStockGroups();
+  res.json({ groups });
+}));
+
+app.get("/api/stock/:symbol", handle(async (req, res) => {
+  const symbol = String(req.params.symbol).toUpperCase();
+  const interval = String(req.query.interval || "D");
+  const chart = await getStockChart(symbol, interval);
+  const indicators = computeIndicators(chart.candles);
+  const patterns = detectPatterns(chart.candles);
+  const score = jarvisScore(chart.candles);
+  const structures = detectStructures(chart.candles, symbol);
+  res.json({
+    symbol, interval, candles: chart.candles, indicators, patterns, score, structures,
+    quote: { price: chart.price, changePct: chart.changePct, currency: chart.currency },
+  });
 }));
 
 // ---- notícias ----

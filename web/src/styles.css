@@ -263,6 +263,11 @@ a { color: inherit; text-decoration: none; }
 .liq-time { font-size: 11px; }
 .liq-wait { font-size: 12px; line-height: 1.5; }
 
+/* ---------- ações ---------- */
+.stock-group { margin-bottom: 14px; }
+.stock-ticker { font-weight: 700; min-width: 52px; }
+.stock-group .coin-name { color: var(--text-dim); font-weight: 400; }
+
 /* ---------- simulador ---------- */
 .sim-tag { font-size: 12px; font-weight: 400; margin-left: 8px; }
 .sim-body { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; margin-bottom: 18px; }

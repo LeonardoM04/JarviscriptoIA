@@ -150,6 +150,25 @@ export interface Analysis {
   confianca: number;
 }
 
+export interface StockQuote {
+  symbol: string;
+  name: string;
+  price: number;
+  changePct: number;
+  currency: string;
+  sparkline: number[];
+}
+
+export interface StockGroupData {
+  id: string;
+  label: string;
+  stocks: StockQuote[];
+}
+
+export interface StockDetail extends KlinesResponse {
+  quote: { price: number; changePct: number; currency: string };
+}
+
 export interface AnalyzeResponse {
   symbol: string;
   ticker: Ticker;

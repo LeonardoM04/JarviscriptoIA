@@ -70,6 +70,15 @@ export function fetchNews(symbol?: string) {
   return req(`/api/news${q}`).then((r) => handle<{ news: NewsItem[] }>(r));
 }
 
+export function fetchStocks() {
+  return req(`/api/stocks`).then((r) => handle<{ groups: import("./types").StockGroupData[] }>(r));
+}
+
+export function fetchStock(symbol: string, interval: string) {
+  const params = new URLSearchParams({ interval });
+  return req(`/api/stock/${symbol}?${params}`).then((r) => handle<import("./types").StockDetail>(r));
+}
+
 export function requestAnalysis(symbol: string, chartImage?: string) {
   return req(`/api/analyze`, {
     method: "POST",
