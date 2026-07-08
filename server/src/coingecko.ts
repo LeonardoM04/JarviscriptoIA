@@ -45,38 +45,42 @@ interface RawMarket {
   sparkline_in_7d?: { price: number[] };
 }
 
-export function getMarkets(perPage = 100, page = 1): Promise<MarketCoin[]> {
-  return cached(`markets:${perPage}:${page}`, 180_000, async () => {
-    const url = new URL(`${BASE}/coins/markets`);
-    url.searchParams.set("vs_currency", "usd");
-    url.searchParams.set("order", "market_cap_desc");
-    url.searchParams.set("per_page", String(perPage));
-    url.searchParams.set("page", String(page));
-    url.searchParams.set("sparkline", "true");
-    url.searchParams.set("price_change_percentage", "1h,24h,7d");
+export async function getMarkets(perPage = 100, page = 1): Promise<MarketCoin[]> {
+  try {
+    // cached() já serve o último resultado REAL em cache se a CoinGecko falhar
+    // (stale-on-error). Por isso o fetch lança em vez de cair pro fallback aqui.
+    return await cached(`markets:${perPage}:${page}`, 180_000, async () => {
+      const url = new URL(`${BASE}/coins/markets`);
+      url.searchParams.set("vs_currency", "usd");
+      url.searchParams.set("order", "market_cap_desc");
+      url.searchParams.set("per_page", String(perPage));
+      url.searchParams.set("page", String(page));
+      url.searchParams.set("sparkline", "true");
+      url.searchParams.set("price_change_percentage", "1h,24h,7d");
 
-    const res = await fetch(url, { headers: cgHeaders() });
-    if (!res.ok) {
-      const fallback = await getBinanceFallbackMarkets();
-      if (fallback.length) return fallback;
-      throw new Error(`CoinGecko HTTP ${res.status}`);
-    }
-    const rows: RawMarket[] = await res.json();
-    return rows.map((r) => ({
-      id: r.id,
-      symbol: r.symbol,
-      name: r.name,
-      image: r.image,
-      current_price: r.current_price,
-      market_cap: r.market_cap,
-      market_cap_rank: r.market_cap_rank,
-      total_volume: r.total_volume,
-      price_change_percentage_1h: r.price_change_percentage_1h_in_currency,
-      price_change_percentage_24h: r.price_change_percentage_24h_in_currency,
-      price_change_percentage_7d: r.price_change_percentage_7d_in_currency,
-      sparkline: r.sparkline_in_7d?.price ?? [],
-    }));
-  });
+      const res = await fetch(url, { headers: cgHeaders() });
+      if (!res.ok) throw new Error(`CoinGecko HTTP ${res.status}`);
+      const rows: RawMarket[] = await res.json();
+      return rows.map((r) => ({
+        id: r.id,
+        symbol: r.symbol,
+        name: r.name,
+        image: r.image,
+        current_price: r.current_price,
+        market_cap: r.market_cap,
+        market_cap_rank: r.market_cap_rank,
+        total_volume: r.total_volume,
+        price_change_percentage_1h: r.price_change_percentage_1h_in_currency,
+        price_change_percentage_24h: r.price_change_percentage_24h_in_currency,
+        price_change_percentage_7d: r.price_change_percentage_7d_in_currency,
+        sparkline: r.sparkline_in_7d?.price ?? [],
+      }));
+    });
+  } catch {
+    // Nem CoinGecko nem cache disponíveis (ex.: 1º acesso a frio durante 429):
+    // último recurso é a lista reduzida via Binance.
+    return getBinanceFallbackMarkets();
+  }
 }
 
 export interface GlobalData {
@@ -86,35 +90,34 @@ export interface GlobalData {
   ethDominance: number;
 }
 
-export function getGlobal(): Promise<GlobalData> {
-  return cached("global", 180_000, async () => {
-    const res = await fetch(`${BASE}/global`, { headers: cgHeaders() });
-    if (!res.ok) {
-      const markets = await getBinanceFallbackMarkets();
-      const total = markets.reduce((sum, m) => sum + m.market_cap, 0);
-      const btc = markets.find((m) => m.symbol === "btc")?.market_cap ?? 0;
-      const eth = markets.find((m) => m.symbol === "eth")?.market_cap ?? 0;
-      const marketCapChange24h = total
-        ? markets.reduce((sum, m) => sum + m.market_cap * (m.price_change_percentage_24h ?? 0), 0) / total
-        : 0;
-      if (total > 0) {
-        return {
-          totalMarketCapUsd: total,
-          marketCapChange24h,
-          btcDominance: (btc / total) * 100,
-          ethDominance: (eth / total) * 100,
-        };
-      }
-      throw new Error(`CoinGecko HTTP ${res.status}`);
-    }
-    const { data } = await res.json();
+export async function getGlobal(): Promise<GlobalData> {
+  try {
+    return await cached("global", 180_000, async () => {
+      const res = await fetch(`${BASE}/global`, { headers: cgHeaders() });
+      if (!res.ok) throw new Error(`CoinGecko HTTP ${res.status}`);
+      const { data } = await res.json();
+      return {
+        totalMarketCapUsd: data.total_market_cap.usd,
+        marketCapChange24h: data.market_cap_change_percentage_24h_usd,
+        btcDominance: data.market_cap_percentage.btc,
+        ethDominance: data.market_cap_percentage.eth,
+      };
+    });
+  } catch {
+    // último recurso: estima a partir da lista reduzida da Binance
+    const markets = await getBinanceFallbackMarkets();
+    const total = markets.reduce((sum, m) => sum + m.market_cap, 0);
+    if (total <= 0) throw new Error("Dados de mercado indisponíveis");
+    const btc = markets.find((m) => m.symbol === "btc")?.market_cap ?? 0;
+    const eth = markets.find((m) => m.symbol === "eth")?.market_cap ?? 0;
     return {
-      totalMarketCapUsd: data.total_market_cap.usd,
-      marketCapChange24h: data.market_cap_change_percentage_24h_usd,
-      btcDominance: data.market_cap_percentage.btc,
-      ethDominance: data.market_cap_percentage.eth,
+      totalMarketCapUsd: total,
+      marketCapChange24h:
+        markets.reduce((sum, m) => sum + m.market_cap * (m.price_change_percentage_24h ?? 0), 0) / total,
+      btcDominance: (btc / total) * 100,
+      ethDominance: (eth / total) * 100,
     };
-  });
+  }
 }
 
 // Mapa símbolo-Bybit (BTCUSDT) -> id CoinGecko (bitcoin), a partir do top de mercado.
