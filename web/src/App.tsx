@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import Market from "./pages/Market";
 import Coin from "./pages/Coin";
 import News from "./pages/News";
+import Simulator from "./pages/Simulator";
 import Login from "./components/Login";
 import { checkAuth } from "./api";
 
@@ -34,6 +35,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="mercado" element={<Market />} />
           <Route path="moeda/:symbol" element={<Coin />} />
+          <Route path="simulador" element={<Simulator />} />
           <Route path="noticias" element={<News />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
