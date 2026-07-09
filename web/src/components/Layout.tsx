@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import Logo from "./Logo";
 import JarvisChat from "./JarvisChat";
+import Briefing from "./Briefing";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: "◎", end: true },
@@ -47,6 +48,7 @@ export default function Layout() {
         <Outlet />
       </main>
       <JarvisChat />
+      <Briefing />
     </div>
   );
 }

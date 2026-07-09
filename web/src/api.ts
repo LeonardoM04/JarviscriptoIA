@@ -89,6 +89,11 @@ export function requestAnalysis(symbol: string, chartImage?: string) {
 
 export interface ChatFocus { symbol: string; type: "cripto" | "acao"; name: string; }
 
+// hora local do usuário vai na query — o servidor (UTC) usa pra saudar certo
+export function fetchBriefing() {
+  return req(`/api/briefing?hour=${new Date().getHours()}`).then((r) => handle<{ briefing: string }>(r));
+}
+
 export function sendChat(messages: { role: "user" | "assistant"; content: string }[]) {
   return req(`/api/chat`, {
     method: "POST",

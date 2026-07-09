@@ -5,6 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { getTicker, getFearGreed } from "./bybit.js";
 import { getGlobal, getMarkets } from "./coingecko.js";
 import { STOCK_GROUPS } from "./stocks.js";
+import { cached } from "./cache.js";
 
 const MODEL = "claude-opus-4-8";
 
@@ -72,6 +73,32 @@ async function marketSnapshot(): Promise<string> {
   } catch {
     return "sem dados de mercado no momento";
   }
+}
+
+// Briefing proativo — a saudação falada do Jarvis ao abrir o app.
+export function jarvisBriefing(hour: number): Promise<string> {
+  const period = hour < 12 ? "manhã" : hour < 18 ? "tarde" : "noite";
+  return cached(`briefing:${period}`, 120_000, async () => {
+    const snapshot = await marketSnapshot();
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return `Boa ${period}. ${snapshot}. Bom te ver por aqui.`;
+    }
+    const client = new Anthropic();
+    const system = [
+      "Você é o Jarvis, o assistente de inteligência da Quad₿lock Capital, recebendo os sócios ao abrir o painel.",
+      `Dê um briefing de mercado CURTO (2 a 3 frases), como um cumprimento falado. Comece com uma saudação de ${period} (ex.: 'Bom dia', 'Boa tarde', 'Boa noite').`,
+      "Fale o essencial: como está o BTC, o clima geral (medo/ganância) e, se houver, um destaque. Tom confiante, direto, levemente espirituoso — estilo Homem de Ferro. Português. Nunca recomende compra/venda.",
+    ].join("\n");
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 400,
+      system,
+      thinking: { type: "disabled" },
+      messages: [{ role: "user", content: `Dados de mercado agora: ${snapshot}. Faça o briefing.` }],
+    });
+    const t = response.content.find((b) => b.type === "text");
+    return t && t.type === "text" ? t.text.trim() : `Boa ${period}. ${snapshot}.`;
+  });
 }
 
 export async function chatWithJarvis(messages: ChatMessage[]): Promise<{ reply: string; focus: ChatFocus | null }> {
