@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import Logo from "./Logo";
 import { fetchBriefing } from "../api";
-import { canSpeak, speak, stopSpeak } from "../voice";
 
-// Briefing proativo: o Jarvis te recebe (falando) ao abrir o app — uma vez por sessão.
+// Briefing proativo: o Jarvis te recebe ao abrir o app — uma vez por sessão (texto).
 export default function Briefing() {
   const [text, setText] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
   const ran = useRef(false);
 
   useEffect(() => {
@@ -20,34 +18,26 @@ export default function Briefing() {
       .then(({ briefing }) => {
         setText(briefing);
         setVisible(true);
-        if (canSpeak) {
-          setSpeaking(true);
-          speak(briefing, () => setSpeaking(false));
-        }
+        // some sozinho depois de um tempo (dá pra ler com calma)
+        setTimeout(() => setVisible(false), 22000);
       })
       .catch(() => {});
   }, []);
-
-  useEffect(() => () => stopSpeak(), []);
-
-  const close = () => { stopSpeak(); setSpeaking(false); setVisible(false); };
-  const replay = () => { if (!text) return; setSpeaking(true); speak(text, () => setSpeaking(false)); };
 
   if (!visible || !text) return null;
 
   return (
     <div className="briefing">
-      <div className={`briefing-orb ${speaking ? "speaking" : ""}`}>
+      <div className="briefing-orb">
         <span className="core-glow" /><span className="core-ring" />
         <Logo size={30} />
       </div>
       <div className="briefing-body">
-        <div className="briefing-name">Jarvis {speaking && <span className="briefing-wave"><span></span><span></span><span></span><span></span></span>}</div>
+        <div className="briefing-name">Jarvis</div>
         <p>{text}</p>
       </div>
       <div className="briefing-actions">
-        {canSpeak && <button title="Ouvir de novo" onClick={replay}>🔊</button>}
-        <button title="Fechar" onClick={close}>×</button>
+        <button title="Fechar" onClick={() => setVisible(false)}>×</button>
       </div>
     </div>
   );

@@ -2,39 +2,46 @@ import { useEffect, useRef, useState } from "react";
 import Logo from "./Logo";
 import FocusAsset from "./FocusAsset";
 import { sendChat, type ChatFocus } from "../api";
-import {
-  canSpeak, speak, stopSpeak, canListen, listen, ptVoices,
-  getChosenVoiceName, setChosenVoiceName, type Listener,
-} from "../voice";
+import { canListen, listen, type Listener } from "../voice";
 
 interface Msg { role: "user" | "assistant"; content: string; }
-type State = "idle" | "listening" | "thinking" | "speaking";
+type State = "idle" | "listening" | "thinking";
 
-const GREETING = "Jarvis online. Fale ou digite — pergunte sobre qualquer moeda ou ação e eu mostro na tela.";
+const GREETING = "Jarvis online. Fale, digite ou diga 'Ei Jarvis' — pergunte sobre qualquer moeda ou ação e eu mostro na tela.";
+const CONVO_KEY = "jarvis_convo";
+
+function loadConvo(): Msg[] {
+  try {
+    const s = JSON.parse(localStorage.getItem(CONVO_KEY) || "[]");
+    return Array.isArray(s) && s.length ? s : [{ role: "assistant", content: GREETING }];
+  } catch {
+    return [{ role: "assistant", content: GREETING }];
+  }
+}
 
 export default function JarvisChat() {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<State>("idle");
-  const [voiceOn, setVoiceOn] = useState(true);
-  const [listenMode, setListenMode] = useState(false);
-  const [messages, setMessages] = useState<Msg[]>([{ role: "assistant", content: GREETING }]);
+  const [wakeOn, setWakeOn] = useState(false);
+  const [messages, setMessages] = useState<Msg[]>(loadConvo);
   const [interim, setInterim] = useState("");
   const [input, setInput] = useState("");
   const [focus, setFocus] = useState<ChatFocus | null>(null);
-  const [voiceName, setVoiceName] = useState(getChosenVoiceName());
 
   const bodyRef = useRef<HTMLDivElement>(null);
-  const listenerRef = useRef<Listener | null>(null);
-  const listenModeRef = useRef(false);
-  const voiceOnRef = useRef(true);
+  const cmdRef = useRef<Listener | null>(null);
+  const wakeRef = useRef<Listener | null>(null);
+  const wakeOnRef = useRef(false);
   const busyRef = useRef(false);
+  const openRef = useRef(false);
+  const stateRef = useRef<State>("idle");
 
-  useEffect(() => { listenModeRef.current = listenMode; }, [listenMode]);
-  useEffect(() => { voiceOnRef.current = voiceOn; }, [voiceOn]);
-  useEffect(() => {
-    bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, state, focus]);
-  useEffect(() => () => { stopSpeak(); listenerRef.current?.stop(); }, []);
+  useEffect(() => { stateRef.current = state; }, [state]);
+  useEffect(() => { wakeOnRef.current = wakeOn; }, [wakeOn]);
+  useEffect(() => { openRef.current = open; }, [open]);
+  useEffect(() => { localStorage.setItem(CONVO_KEY, JSON.stringify(messages.slice(-50))); }, [messages]);
+  useEffect(() => { bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: "smooth" }); }, [messages, state, focus]);
+  useEffect(() => () => { cmdRef.current?.stop(); wakeRef.current?.stop(); }, []);
 
   const handleUserText = async (text: string) => {
     if (!text.trim() || busyRef.current) return;
@@ -48,57 +55,60 @@ export default function JarvisChat() {
       const { reply, focus: f } = await sendChat(next);
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
       if (f) setFocus(f);
-      if (voiceOnRef.current && canSpeak) {
-        setState("speaking");
-        speak(reply, () => { setState("idle"); busyRef.current = false; if (listenModeRef.current) startListen(); });
-      } else {
-        setState("idle");
-        busyRef.current = false;
-        if (listenModeRef.current) startListen();
-      }
     } catch (e) {
       setMessages((m) => [...m, { role: "assistant", content: e instanceof Error ? e.message : "Falha ao responder." }]);
+    } finally {
       setState("idle");
       busyRef.current = false;
+      if (wakeOnRef.current) setTimeout(startWake, 500); // volta a ouvir o "Ei Jarvis"
     }
   };
 
-  const startListen = () => {
+  // ---- entrada por microfone (push-to-talk) ----
+  const startCommand = () => {
     if (!canListen || busyRef.current) return;
-    stopSpeak();
+    wakeRef.current?.stop();
     setState("listening");
     setInterim("");
-    listenerRef.current = listen({
+    cmdRef.current = listen({
       continuous: false,
       onResult: (t, isFinal) => {
         setInterim(t);
-        if (isFinal && t) {
-          listenerRef.current?.stop();
-          handleUserText(t);
-        }
+        if (isFinal && t) { cmdRef.current?.stop(); handleUserText(t); }
       },
-      onEnd: () => {
-        setInterim("");
-        // se ninguém falou e o modo escuta segue ligado, reabre em seguida
-        if (!busyRef.current) {
-          setState("idle");
-          if (listenModeRef.current) setTimeout(() => { if (listenModeRef.current && !busyRef.current) startListen(); }, 400);
-        }
-      },
+      onEnd: () => { setInterim(""); if (!busyRef.current) { setState("idle"); if (wakeOnRef.current) setTimeout(startWake, 400); } },
     });
   };
+  const stopCommand = () => { cmdRef.current?.stop(); setState("idle"); setInterim(""); };
 
-  const stopListen = () => { listenerRef.current?.stop(); setState("idle"); setInterim(""); };
-
-  const toggleListenMode = () => {
-    const on = !listenMode;
-    setListenMode(on);
-    listenModeRef.current = on;
-    if (on) startListen();
-    else stopListen();
+  // ---- wake word: "Ei Jarvis" ----
+  const startWake = () => {
+    if (!canListen || !wakeOnRef.current || busyRef.current || stateRef.current === "listening") return;
+    wakeRef.current = listen({
+      continuous: true,
+      onResult: (t) => {
+        if (/\b(ei )?jarvis\b/i.test(t)) {
+          wakeRef.current?.stop();
+          if (!openRef.current) setOpen(true);
+          setTimeout(startCommand, 250);
+        }
+      },
+      onEnd: () => { if (wakeOnRef.current && !busyRef.current && stateRef.current !== "listening") setTimeout(startWake, 500); },
+    });
+  };
+  const toggleWake = () => {
+    const on = !wakeOn;
+    setWakeOn(on); wakeOnRef.current = on;
+    if (on) { if (!open) setOpen(true); startWake(); } else { wakeRef.current?.stop(); }
   };
 
-  const stateLabel = { idle: "Pronto", listening: "Ouvindo…", thinking: "Pensando…", speaking: "Falando…" }[state];
+  const clearConvo = () => {
+    const g = [{ role: "assistant" as const, content: GREETING }];
+    setMessages(g); setFocus(null);
+    localStorage.setItem(CONVO_KEY, JSON.stringify(g));
+  };
+
+  const stateLabel = { idle: wakeOn ? "Ouvindo 'Ei Jarvis'" : "Pronto", listening: "Ouvindo…", thinking: "Pensando…" }[state];
 
   return (
     <>
@@ -112,19 +122,8 @@ export default function JarvisChat() {
           <div className="jbrain-head">
             <div className="jchat-title"><Logo size={22} /> <span>Jarvis</span> <span className="jchat-live">{stateLabel}</span></div>
             <div className="jchat-actions">
-              {canSpeak && ptVoices().length > 0 && (
-                <select className="voice-select" value={voiceName} title="Escolher voz"
-                  onChange={(e) => { setVoiceName(e.target.value); setChosenVoiceName(e.target.value); }}>
-                  <option value="">Voz automática</option>
-                  {ptVoices().map((v) => <option key={v.name} value={v.name}>{v.name.replace("Microsoft ", "")}</option>)}
-                </select>
-              )}
-              {canSpeak && (
-                <button className={voiceOn ? "on" : ""} title="Voz do Jarvis" onClick={() => { setVoiceOn((v) => { if (v) stopSpeak(); return !v; }); }}>
-                  {voiceOn ? "🔊" : "🔈"}
-                </button>
-              )}
-              <button title="Fechar" onClick={() => { stopSpeak(); stopListen(); setOpen(false); }}>×</button>
+              <button title="Limpar conversa" onClick={clearConvo}>🗑</button>
+              <button title="Fechar" onClick={() => { stopCommand(); wakeRef.current?.stop(); setOpen(false); }}>×</button>
             </div>
           </div>
 
@@ -142,14 +141,11 @@ export default function JarvisChat() {
 
           <div className="jbrain-controls">
             {canListen && (
-              <button className={`mic-btn ${state === "listening" ? "on" : ""}`}
-                title="Segure para falar" onClick={() => (state === "listening" ? stopListen() : startListen())}>
-                🎤
-              </button>
+              <button className={`mic-btn ${state === "listening" ? "on" : ""}`} title="Segure para falar" onClick={() => (state === "listening" ? stopCommand() : startCommand())}>🎤</button>
             )}
             {canListen && (
-              <button className={`listen-mode ${listenMode ? "on" : ""}`} onClick={toggleListenMode} title="Modo conversa contínua (ativa por voz)">
-                {listenMode ? "● conversa" : "conversa por voz"}
+              <button className={`listen-mode ${wakeOn ? "on" : ""}`} onClick={toggleWake} title="Ativar por voz dizendo 'Ei Jarvis'">
+                {wakeOn ? "● Ei Jarvis" : "Ei Jarvis"}
               </button>
             )}
             <form className="jbrain-input" onSubmit={(e) => { e.preventDefault(); handleUserText(input); }}>

@@ -1,21 +1,5 @@
-import { useEffect, useState } from "react";
 import type { AnalyzeResponse } from "../types";
 import { money } from "../utils";
-import { canSpeak, speak, stopSpeak } from "../voice";
-
-// ---- voz do Jarvis (Web Speech API — nativa do navegador, pt-BR) ----
-function buildSpeech(r: AnalyzeResponse): string {
-  const a = r.analysis;
-  return [
-    `Análise de ${r.symbol.replace(/USDT$/, "")}.`,
-    a.veredito,
-    `Tendência ${a.tendencia}, força ${a.forca_tendencia}.`,
-    `Minha tese: ${a.tese}`,
-    `Recomendação: ${a.recomendacao}, com confiança de ${a.confianca} por cento.`,
-    `Plano: entrada ${a.plano.zona_entrada}. Stop em ${a.plano.stop}. Tamanho sugerido: ${a.plano.tamanho_sugerido}.`,
-    `Atenção: isto não é recomendação financeira.`,
-  ].join(" ");
-}
 
 interface Props {
   result: AnalyzeResponse | null;
@@ -29,21 +13,6 @@ const recColor = (rec: string) =>
   /compr|acumular/.test(rec) ? "#2ebd85" : /vend|reduzir/.test(rec) ? "#e04f5f" : "#fbbf24";
 
 export default function AnalysisPanel({ result, loading, error, onAnalyze }: Props) {
-  const [speaking, setSpeaking] = useState(false);
-
-  useEffect(() => () => stopSpeak(), []);
-
-  const toggleSpeech = () => {
-    if (!result || !canSpeak) return;
-    if (speaking) {
-      stopSpeak();
-      setSpeaking(false);
-      return;
-    }
-    setSpeaking(true);
-    speak(buildSpeech(result), () => setSpeaking(false));
-  };
-
   return (
     <div className="analysis-panel">
       <button className="analyze-btn" onClick={onAnalyze} disabled={loading}>
@@ -60,15 +29,7 @@ export default function AnalysisPanel({ result, loading, error, onAnalyze }: Pro
 
       {result && !loading && (
         <div className="analysis-content">
-          <div className="verdict-row">
-            <div className="verdict">"{result.analysis.veredito}"</div>
-            {canSpeak && (
-              <button className={`voice-btn ${speaking ? "speaking" : ""}`} onClick={toggleSpeech}
-                title={speaking ? "Parar" : "Ouvir a análise na voz do Jarvis"}>
-                {speaking ? "⏹" : "🔊"}
-              </button>
-            )}
-          </div>
+          <div className="verdict">"{result.analysis.veredito}"</div>
 
           <div className="badges">
             <span className="badge" style={{ borderColor: trendColor[result.analysis.tendencia] }}>
