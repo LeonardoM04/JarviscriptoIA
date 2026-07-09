@@ -11,6 +11,7 @@ export interface Candle {
 
 import { cached } from "./cache.js";
 import { getBinanceKlines, getBinanceTicker } from "./binance.js";
+import { getCoinGeckoKlines } from "./coingecko.js";
 
 const BASE = "https://api.bybit.com";
 
@@ -23,7 +24,12 @@ export async function getKlines(
     try {
       return await getBybitKlines(symbol, interval, limit);
     } catch {
-      return getBinanceKlines(symbol, interval, limit);
+      try {
+        return await getBinanceKlines(symbol, interval, limit);
+      } catch {
+        // último recurso: candles da CoinGecko (cobre moedas fora das corretoras)
+        return getCoinGeckoKlines(symbol, interval);
+      }
     }
   });
 }

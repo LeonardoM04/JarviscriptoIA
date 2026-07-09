@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { AnalyzeResponse } from "../types";
 import { money } from "../utils";
+import { canSpeak, speak, stopSpeak } from "../voice";
 
 // ---- voz do Jarvis (Web Speech API — nativa do navegador, pt-BR) ----
 function buildSpeech(r: AnalyzeResponse): string {
@@ -29,26 +30,18 @@ const recColor = (rec: string) =>
 
 export default function AnalysisPanel({ result, loading, error, onAnalyze }: Props) {
   const [speaking, setSpeaking] = useState(false);
-  const canSpeak = typeof window !== "undefined" && "speechSynthesis" in window;
 
-  useEffect(() => () => window.speechSynthesis?.cancel(), []);
+  useEffect(() => () => stopSpeak(), []);
 
   const toggleSpeech = () => {
     if (!result || !canSpeak) return;
     if (speaking) {
-      window.speechSynthesis.cancel();
+      stopSpeak();
       setSpeaking(false);
       return;
     }
-    const u = new SpeechSynthesisUtterance(buildSpeech(result));
-    u.lang = "pt-BR";
-    u.rate = 1.05;
-    const ptVoice = window.speechSynthesis.getVoices().find((v) => v.lang.startsWith("pt"));
-    if (ptVoice) u.voice = ptVoice;
-    u.onend = () => setSpeaking(false);
-    u.onerror = () => setSpeaking(false);
     setSpeaking(true);
-    window.speechSynthesis.speak(u);
+    speak(buildSpeech(result), () => setSpeaking(false));
   };
 
   return (

@@ -87,6 +87,14 @@ export function requestAnalysis(symbol: string, chartImage?: string) {
   }).then((r) => handle<AnalyzeResponse>(r));
 }
 
+export function sendChat(messages: { role: "user" | "assistant"; content: string }[]) {
+  return req(`/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages }),
+  }).then((r) => handle<{ reply: string }>(r));
+}
+
 export function requestStockAnalysis(symbol: string, chartImage?: string) {
   return req(`/api/analyze-stock`, {
     method: "POST",

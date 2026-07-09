@@ -13,6 +13,7 @@ import { getMarkets, getGlobal, getCoinDetail, symbolToId } from "./coingecko.js
 import { getDerivatives } from "./derivatives.js";
 import { getNews } from "./news.js";
 import { getStockGroups, getStockChart, getStockNews } from "./stocks.js";
+import { chatWithJarvis, type ChatMessage } from "./chat.js";
 
 const app = express();
 app.use(express.json({ limit: "8mb" }));
@@ -128,6 +129,13 @@ app.get("/api/news", handle(async (req, res) => {
   const currency = req.query.symbol ? normalizeSymbol(String(req.query.symbol)).replace(/USDT$/, "") : undefined;
   const news = await getNews(currency);
   res.json({ news });
+}));
+
+// ---- Jarvis conversacional ----
+app.post("/api/chat", handle(async (req, res) => {
+  const messages: ChatMessage[] = Array.isArray(req.body?.messages) ? req.body.messages : [];
+  const reply = await chatWithJarvis(messages);
+  res.json({ reply });
 }));
 
 // ---- análise gênio ----

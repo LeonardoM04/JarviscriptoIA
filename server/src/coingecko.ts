@@ -1,8 +1,27 @@
 // CoinGecko (API pública gratuita, sem chave) — universo de moedas,
 // dominância do mercado e fundamentos por moeda.
 
+import Anthropic from "@anthropic-ai/sdk";
 import { cached } from "./cache.js";
 import { fallbackSymbolToId, getBinanceFallbackMarkets } from "./binance.js";
+
+// tradução curta pt-BR via Haiku (rápido/barato); silenciosamente mantém o original se falhar
+async function translateToPt(text: string): Promise<string> {
+  if (!text || !process.env.ANTHROPIC_API_KEY) return text;
+  try {
+    const client = new Anthropic();
+    const r = await client.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 600,
+      system: "Traduza o texto para português do Brasil. Responda APENAS com a tradução, sem aspas nem comentários.",
+      messages: [{ role: "user", content: text }],
+    });
+    const t = r.content.find((b) => b.type === "text");
+    return t && t.type === "text" ? t.text.trim() : text;
+  } catch {
+    return text;
+  }
+}
 
 const BASE = "https://api.coingecko.com/api/v3";
 
@@ -14,6 +33,30 @@ const cgHeaders = (): Record<string, string> => {
   if (CG_KEY) h["x-cg-demo-api-key"] = CG_KEY;
   return h;
 };
+
+// traduz as tags de categoria mais comuns da CoinGecko (elas só vêm em inglês)
+const CATEGORY_PT: Record<string, string> = {
+  "artificial intelligence (ai)": "Inteligência Artificial (IA)",
+  "ai agents": "Agentes de IA",
+  "ai applications": "Aplicações de IA",
+  "meme": "Meme",
+  "gaming (gamefi)": "Games (GameFi)",
+  "decentralized finance (defi)": "Finanças Descentralizadas (DeFi)",
+  "smart contract platform": "Plataforma de Contratos Inteligentes",
+  "layer 1 (l1)": "Camada 1 (L1)",
+  "layer 2 (l2)": "Camada 2 (L2)",
+  "stablecoins": "Stablecoins",
+  "exchange-based tokens": "Tokens de Corretora",
+  "real world assets (rwa)": "Ativos do Mundo Real (RWA)",
+  "privacy coins": "Moedas de Privacidade",
+  "storage": "Armazenamento",
+  "oracle": "Oráculo",
+  "base ecosystem": "Ecossistema Base",
+  "solana ecosystem": "Ecossistema Solana",
+  "ethereum ecosystem": "Ecossistema Ethereum",
+  "binance alpha spotlight": "Destaque Binance Alpha",
+};
+const translateCategory = (c: string): string => CATEGORY_PT[c.toLowerCase()] ?? c;
 
 export interface MarketCoin {
   id: string;
@@ -120,6 +163,31 @@ export async function getGlobal(): Promise<GlobalData> {
   }
 }
 
+// Candles via CoinGecko (OHLC) — último recurso para moedas fora das corretoras.
+// Granularidade é automática pela CoinGecko (não bate exatamente com o intervalo).
+const OHLC_DAYS: Record<string, number> = { "15": 1, "60": 7, "240": 30, D: 180, W: 365 };
+
+export async function getCoinGeckoKlines(
+  symbol: string,
+  interval: string
+): Promise<{ time: number; open: number; high: number; low: number; close: number; volume: number }[]> {
+  const id = await symbolToId(symbol);
+  if (!id) throw new Error("Moeda não encontrada na CoinGecko");
+  const days = OHLC_DAYS[interval] ?? 90;
+  return cached(`cgohlc:${id}:${days}`, 120_000, async () => {
+    const url = new URL(`${BASE}/coins/${id}/ohlc`);
+    url.searchParams.set("vs_currency", "usd");
+    url.searchParams.set("days", String(days));
+    const res = await fetch(url, { headers: cgHeaders() });
+    if (!res.ok) throw new Error(`CoinGecko HTTP ${res.status}`);
+    const rows: number[][] = await res.json();
+    return rows.map((r) => ({
+      time: Math.floor(r[0] / 1000),
+      open: r[1], high: r[2], low: r[3], close: r[4], volume: 0,
+    }));
+  });
+}
+
 // Mapa símbolo-Bybit (BTCUSDT) -> id CoinGecko (bitcoin), a partir do top de mercado.
 export async function symbolToId(symbol: string): Promise<string | null> {
   const base = symbol.replace(/USDT$/, "").toLowerCase();
@@ -145,7 +213,7 @@ export interface CoinDetail {
 export function getCoinDetail(id: string): Promise<CoinDetail> {
   return cached(`coin:${id}`, 300_000, async () => {
     const url = new URL(`${BASE}/coins/${id}`);
-    url.searchParams.set("localization", "false");
+    url.searchParams.set("localization", "true"); // traz descrição em vários idiomas
     url.searchParams.set("tickers", "false");
     url.searchParams.set("market_data", "true");
     url.searchParams.set("community_data", "false");
@@ -153,13 +221,16 @@ export function getCoinDetail(id: string): Promise<CoinDetail> {
     const res = await fetch(url, { headers: cgHeaders() });
     if (!res.ok) throw new Error(`CoinGecko HTTP ${res.status}`);
     const d = await res.json();
-    const desc: string = d.description?.en || "";
+    // CoinGecko raramente tem descrição em PT; traduzimos o inglês com o Haiku
+    const ptDesc: string = d.description?.pt?.trim() || "";
+    const rawDesc: string = (ptDesc || d.description?.en || "").split(". ").slice(0, 3).join(". ");
+    const description = ptDesc ? rawDesc : await translateToPt(rawDesc);
     return {
       id: d.id,
       name: d.name,
       symbol: d.symbol,
-      description: desc.split(". ").slice(0, 3).join(". "),
-      categories: (d.categories || []).filter(Boolean).slice(0, 5),
+      description,
+      categories: (d.categories || []).filter(Boolean).slice(0, 5).map(translateCategory),
       marketCapRank: d.market_cap_rank ?? null,
       athChangePct: d.market_data?.ath_change_percentage?.usd ?? null,
       atlChangePct: d.market_data?.atl_change_percentage?.usd ?? null,
