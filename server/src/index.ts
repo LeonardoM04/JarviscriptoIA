@@ -134,8 +134,8 @@ app.get("/api/news", handle(async (req, res) => {
 // ---- Jarvis conversacional ----
 app.post("/api/chat", handle(async (req, res) => {
   const messages: ChatMessage[] = Array.isArray(req.body?.messages) ? req.body.messages : [];
-  const reply = await chatWithJarvis(messages);
-  res.json({ reply });
+  const { reply, focus } = await chatWithJarvis(messages);
+  res.json({ reply, focus });
 }));
 
 // ---- análise gênio ----
