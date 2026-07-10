@@ -3,12 +3,14 @@ import { useState } from "react";
 import Logo from "./Logo";
 import JarvisChat from "./JarvisChat";
 import Briefing from "./Briefing";
+import AlertsWatcher from "./AlertsWatcher";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: "◎", end: true },
   { to: "/mercado", label: "Mercado", icon: "▤" },
   { to: "/acoes", label: "Ações", icon: "▦" },
   { to: "/simulador", label: "Simulador", icon: "⊞" },
+  { to: "/alertas", label: "Alertas", icon: "◔" },
   { to: "/noticias", label: "Notícias", icon: "◈" },
 ];
 
@@ -49,6 +51,7 @@ export default function Layout() {
       </main>
       <JarvisChat />
       <Briefing />
+      <AlertsWatcher />
     </div>
   );
 }

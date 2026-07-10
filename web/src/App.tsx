@@ -8,6 +8,7 @@ import News from "./pages/News";
 import Simulator from "./pages/Simulator";
 import Stocks from "./pages/Stocks";
 import Stock from "./pages/Stock";
+import Alerts from "./pages/Alerts";
 import Login from "./components/Login";
 import Splash from "./components/Splash";
 import { checkAuth } from "./api";
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="acoes" element={<Stocks />} />
           <Route path="acao/:symbol" element={<Stock />} />
           <Route path="simulador" element={<Simulator />} />
+          <Route path="alertas" element={<Alerts />} />
           <Route path="noticias" element={<News />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
