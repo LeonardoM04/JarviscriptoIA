@@ -7,7 +7,7 @@ import type { Candle } from "./bybit.js";
 export interface StockGroup {
   id: string;
   label: string;
-  tickers: { symbol: string; name: string }[];
+  tickers: { symbol: string; name: string; display?: string }[];
 }
 
 export const STOCK_GROUPS: StockGroup[] = [
@@ -73,6 +73,36 @@ export const STOCK_GROUPS: StockGroup[] = [
       { symbol: "CRM", name: "Salesforce" },
     ],
   },
+  {
+    id: "metais",
+    label: "Metais",
+    tickers: [
+      { symbol: "GC=F", name: "Ouro", display: "OURO" },
+      { symbol: "SI=F", name: "Prata", display: "PRATA" },
+      { symbol: "HG=F", name: "Cobre", display: "COBRE" },
+      { symbol: "PL=F", name: "Platina", display: "PLATINA" },
+      { symbol: "PA=F", name: "Paládio", display: "PALÁDIO" },
+    ],
+  },
+  {
+    id: "energia",
+    label: "Energia",
+    tickers: [
+      { symbol: "CL=F", name: "Petróleo WTI", display: "WTI" },
+      { symbol: "BZ=F", name: "Petróleo Brent", display: "BRENT" },
+      { symbol: "NG=F", name: "Gás Natural", display: "GÁS" },
+    ],
+  },
+  {
+    id: "indices",
+    label: "Índices",
+    tickers: [
+      { symbol: "^GSPC", name: "S&P 500", display: "S&P 500" },
+      { symbol: "^IXIC", name: "Nasdaq Composite", display: "NASDAQ" },
+      { symbol: "^DJI", name: "Dow Jones", display: "DOW" },
+      { symbol: "^VIX", name: "Índice de Volatilidade (medo)", display: "VIX" },
+    ],
+  },
 ];
 
 const YF = "https://query1.finance.yahoo.com/v8/finance/chart";
@@ -134,10 +164,20 @@ export function getStockChart(symbol: string, interval = "D"): Promise<ChartResu
 export interface StockQuote {
   symbol: string;
   name: string;
+  display: string;
   price: number;
   changePct: number;
   currency: string;
   sparkline: number[];
+}
+
+// nome amigável de um ticker (inclui commodities/índices), p/ o detalhe
+export function tickerName(symbol: string): string | null {
+  for (const g of STOCK_GROUPS) {
+    const t = g.tickers.find((x) => x.symbol.toUpperCase() === symbol.toUpperCase());
+    if (t) return t.name;
+  }
+  return null;
 }
 
 // Notícias da ação via busca do Yahoo Finance (keyless)
@@ -177,6 +217,7 @@ export function getStockGroups(): Promise<{ id: string; label: string; stocks: S
               return {
                 symbol: t.symbol,
                 name: t.name,
+                display: t.display || t.symbol,
                 price: c.price,
                 changePct: c.changePct,
                 currency: c.currency,

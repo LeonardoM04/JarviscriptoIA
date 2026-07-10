@@ -93,7 +93,7 @@ export default function Stock() {
     <div className="page coin">
       <div className="coin-header">
         <div className="coin-title">
-          <h1>{symbol}</h1>
+          <h1>{data?.name || symbol}{data?.name && <span className="dim"> · {symbol}</span>}</h1>
           {data && <ScoreBadge score={data.score} />}
           {data?.structures?.cycle && (
             <span className="cycle-badge" title={data.structures.cycle.note}

@@ -153,6 +153,7 @@ export interface Analysis {
 export interface StockQuote {
   symbol: string;
   name: string;
+  display: string;
   price: number;
   changePct: number;
   currency: string;
@@ -173,6 +174,7 @@ export interface StockNewsItem {
 }
 
 export interface StockDetail extends KlinesResponse {
+  name: string | null;
   quote: { price: number; changePct: number; currency: string };
   news: StockNewsItem[];
 }

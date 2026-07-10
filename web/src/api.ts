@@ -76,7 +76,7 @@ export function fetchStocks() {
 
 export function fetchStock(symbol: string, interval: string) {
   const params = new URLSearchParams({ interval });
-  return req(`/api/stock/${symbol}?${params}`).then((r) => handle<import("./types").StockDetail>(r));
+  return req(`/api/stock/${encodeURIComponent(symbol)}?${params}`).then((r) => handle<import("./types").StockDetail>(r));
 }
 
 export function requestAnalysis(symbol: string, chartImage?: string) {

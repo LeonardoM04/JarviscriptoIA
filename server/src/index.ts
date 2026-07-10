@@ -12,7 +12,7 @@ import { analyzeSymbol, analyzeStock } from "./analysis.js";
 import { getMarkets, getGlobal, getCoinDetail, symbolToId } from "./coingecko.js";
 import { getDerivatives } from "./derivatives.js";
 import { getNews } from "./news.js";
-import { getStockGroups, getStockChart, getStockNews } from "./stocks.js";
+import { getStockGroups, getStockChart, getStockNews, tickerName } from "./stocks.js";
 import { chatWithJarvis, jarvisBriefing, type ChatMessage } from "./chat.js";
 
 const app = express();
@@ -110,7 +110,7 @@ app.get("/api/stock/:symbol", handle(async (req, res) => {
   const score = jarvisScore(chart.candles);
   const structures = detectStructures(chart.candles, symbol);
   res.json({
-    symbol, interval, candles: chart.candles, indicators, patterns, score, structures, news,
+    symbol, interval, name: tickerName(symbol), candles: chart.candles, indicators, patterns, score, structures, news,
     quote: { price: chart.price, changePct: chart.changePct, currency: chart.currency },
   });
 }));

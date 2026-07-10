@@ -1,17 +1,25 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { fetchStocks } from "../api";
 import type { StockGroupData } from "../types";
 import { changeClass, pct } from "../utils";
 import Sparkline from "../components/Sparkline";
 
 const money = (v: number, cur: string) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: cur || "USD" }).format(v);
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: cur || "USD", maximumFractionDigits: v < 1 ? 4 : 2 }).format(v);
 
 export default function Stocks() {
   const [groups, setGroups] = useState<StockGroupData[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const navigate = useNavigate();
+
+  const search = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = query.toUpperCase().trim();
+    if (q) navigate(`/acao/${encodeURIComponent(q)}`);
+  };
 
   useEffect(() => {
     let active = true;
@@ -28,7 +36,13 @@ export default function Stocks() {
 
   return (
     <div className="page stocks">
-      <h1 className="page-title">Ações <span className="dim sim-tag">computação quântica · IA</span></h1>
+      <div className="market-head">
+        <h1 className="page-title">Bolsa & Ativos <span className="dim sim-tag">ações, metais, energia, índices</span></h1>
+        <form className="symbol-form" onSubmit={search}>
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar qualquer ativo (ex.: AAPL, KO, GC=F)" spellCheck={false} style={{ width: 260 }} />
+          <button type="submit">Buscar</button>
+        </form>
+      </div>
       {error && <div className="error-box">{error}</div>}
       {loading && !groups.length && <div className="dim">Carregando cotações…</div>}
 
@@ -44,8 +58,8 @@ export default function Stocks() {
                 {g.stocks.map((s) => (
                   <tr key={s.symbol}>
                     <td className="left">
-                      <Link to={`/acao/${s.symbol}`} className="coin-cell">
-                        <span className="stock-ticker">{s.symbol}</span>
+                      <Link to={`/acao/${encodeURIComponent(s.symbol)}`} className="coin-cell">
+                        <span className="stock-ticker">{s.display}</span>
                         <span className="coin-name">{s.name}</span>
                       </Link>
                     </td>

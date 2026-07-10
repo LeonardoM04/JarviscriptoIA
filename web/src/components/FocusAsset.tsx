@@ -48,7 +48,7 @@ export default function FocusAsset({ focus }: { focus: ChatFocus }) {
 
   const money = (v: number, cur: string) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: cur || "USD", maximumFractionDigits: v < 1 ? 6 : 2 }).format(v);
-  const route = focus.type === "acao" ? `/acao/${focus.symbol}` : `/moeda/${focus.symbol}`;
+  const route = focus.type === "acao" ? `/acao/${encodeURIComponent(focus.symbol)}` : `/moeda/${focus.symbol}`;
 
   return (
     <div className="focus-asset">
