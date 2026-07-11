@@ -179,6 +179,44 @@ export interface StockDetail extends KlinesResponse {
   news: StockNewsItem[];
 }
 
+export interface PortfolioTx {
+  id: string;
+  symbol: string;
+  assetType: "cripto" | "acao";
+  side: "compra" | "venda";
+  quantity: number;
+  price: number;
+  person: string;
+  note?: string;
+  createdAt: string;
+}
+
+export interface Position {
+  symbol: string;
+  assetType: "cripto" | "acao";
+  quantity: number;
+  avgPrice: number;
+  invested: number;
+  realizedPnl: number;
+  currentPrice?: number;
+  marketValue?: number;
+  unrealizedPnl?: number;
+}
+
+export interface PortfolioData {
+  transactions: PortfolioTx[];
+  positions: Position[];
+  people: { person: string; net: number }[];
+  summary: {
+    totalInvested: number;
+    totalMarket: number;
+    totalUnrealized: number;
+    totalUnrealizedPct: number;
+    totalRealized: number;
+  };
+  storageMode: string;
+}
+
 export interface AnalyzeResponse {
   symbol: string;
   ticker: Ticker;

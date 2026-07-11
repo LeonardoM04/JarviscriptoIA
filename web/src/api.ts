@@ -87,6 +87,29 @@ export function requestAnalysis(symbol: string, chartImage?: string) {
   }).then((r) => handle<AnalyzeResponse>(r));
 }
 
+export function fetchPortfolio() {
+  return req(`/api/portfolio`).then((r) => handle<import("./types").PortfolioData>(r));
+}
+
+export function addTransaction(tx: {
+  symbol: string; assetType: "cripto" | "acao"; side: "compra" | "venda";
+  quantity: number; price: number; person: string; note?: string; date?: string;
+}) {
+  return req(`/api/portfolio/tx`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(tx),
+  }).then((r) => handle<{ ok: boolean }>(r));
+}
+
+export function deleteTransaction(id: string) {
+  return req(`/api/portfolio/tx/${id}`, { method: "DELETE" }).then((r) => handle<{ ok: boolean }>(r));
+}
+
+export function analyzePortfolio() {
+  return req(`/api/portfolio/analyze`, { method: "POST" }).then((r) => handle<{ analysis: string }>(r));
+}
+
 export interface ChatFocus { symbol: string; type: "cripto" | "acao"; name: string; }
 
 // hora local do usuário vai na query — o servidor (UTC) usa pra saudar certo

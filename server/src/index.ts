@@ -14,6 +14,8 @@ import { getDerivatives } from "./derivatives.js";
 import { getNews } from "./news.js";
 import { getStockGroups, getStockChart, getStockNews, tickerName } from "./stocks.js";
 import { chatWithJarvis, jarvisBriefing, type ChatMessage } from "./chat.js";
+import { repo, storageMode, type Tx } from "./store.js";
+import { buildPortfolio, analyzePortfolio } from "./portfolio.js";
 
 const app = express();
 app.use(express.json({ limit: "8mb" }));
@@ -129,6 +131,47 @@ app.get("/api/news", handle(async (req, res) => {
   const currency = req.query.symbol ? normalizeSymbol(String(req.query.symbol)).replace(/USDT$/, "") : undefined;
   const news = await getNews(currency);
   res.json({ news });
+}));
+
+// ---- carteira do grupo ----
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+app.get("/api/portfolio", handle(async (_req, res) => {
+  const txs = await repo.getAll();
+  const data = await buildPortfolio(txs);
+  res.json({ ...data, storageMode });
+}));
+
+app.post("/api/portfolio/tx", handle(async (req, res) => {
+  const b = req.body || {};
+  const symbol = String(b.symbol || "").toUpperCase().replace(/USDT$/, "").trim();
+  const quantity = Number(b.quantity);
+  const price = Number(b.price);
+  if (!symbol || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(price) || price < 0) {
+    res.status(400).json({ error: "Dados inválidos (símbolo, quantidade, preço)." });
+    return;
+  }
+  const tx: Tx = {
+    id: uid(), symbol,
+    assetType: b.assetType === "acao" ? "acao" : "cripto",
+    side: b.side === "venda" ? "venda" : "compra",
+    quantity, price,
+    person: String(b.person || "—").slice(0, 40),
+    note: b.note ? String(b.note).slice(0, 200) : undefined,
+    createdAt: b.date ? new Date(b.date).toISOString() : new Date().toISOString(),
+  };
+  await repo.add(tx);
+  res.json({ ok: true, tx });
+}));
+
+app.delete("/api/portfolio/tx/:id", handle(async (req, res) => {
+  const ok = await repo.remove(String(req.params.id));
+  res.json({ ok });
+}));
+
+app.post("/api/portfolio/analyze", handle(async (_req, res) => {
+  const analysis = await analyzePortfolio(await repo.getAll());
+  res.json({ analysis });
 }));
 
 // ---- Jarvis conversacional ----

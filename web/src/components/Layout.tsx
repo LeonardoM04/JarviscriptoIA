@@ -9,6 +9,7 @@ const nav = [
   { to: "/", label: "Dashboard", icon: "◎", end: true },
   { to: "/mercado", label: "Mercado", icon: "▤" },
   { to: "/acoes", label: "Bolsa", icon: "▦" },
+  { to: "/carteira", label: "Carteira", icon: "◇" },
   { to: "/simulador", label: "Simulador", icon: "⊞" },
   { to: "/alertas", label: "Alertas", icon: "◔" },
   { to: "/noticias", label: "Notícias", icon: "◈" },

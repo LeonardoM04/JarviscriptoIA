@@ -6,6 +6,7 @@ import Market from "./pages/Market";
 import Coin from "./pages/Coin";
 import News from "./pages/News";
 import Simulator from "./pages/Simulator";
+import Portfolio from "./pages/Portfolio";
 import Stocks from "./pages/Stocks";
 import Stock from "./pages/Stock";
 import Alerts from "./pages/Alerts";
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="moeda/:symbol" element={<Coin />} />
           <Route path="acoes" element={<Stocks />} />
           <Route path="acao/:symbol" element={<Stock />} />
+          <Route path="carteira" element={<Portfolio />} />
           <Route path="simulador" element={<Simulator />} />
           <Route path="alertas" element={<Alerts />} />
           <Route path="noticias" element={<News />} />
