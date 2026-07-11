@@ -110,6 +110,38 @@ export function analyzePortfolio() {
   return req(`/api/portfolio/analyze`, { method: "POST" }).then((r) => handle<{ analysis: string }>(r));
 }
 
+// ---- alertas (servidor) + push ----
+export function fetchAlerts() {
+  return req(`/api/alerts`).then((r) => handle<{ alerts: import("./alerts").Alert[] }>(r));
+}
+
+export function createAlert(a: {
+  symbol: string; assetType: "cripto" | "acao"; metric: "preco" | "variacao24h" | "rsi";
+  op: ">=" | "<="; value: number; person?: string;
+}) {
+  return req(`/api/alerts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(a),
+  }).then((r) => handle<{ ok: boolean; alert: import("./alerts").Alert }>(r));
+}
+
+export function deleteAlert(id: string) {
+  return req(`/api/alerts/${id}`, { method: "DELETE" }).then((r) => handle<{ ok: boolean }>(r));
+}
+
+export function getVapidKey() {
+  return req(`/api/push/vapid`).then((r) => handle<{ publicKey: string }>(r));
+}
+
+export function savePushSubscription(subscription: unknown) {
+  return req(`/api/push/subscribe`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ subscription }),
+  }).then((r) => handle<{ ok: boolean }>(r));
+}
+
 export interface ChatFocus { symbol: string; type: "cripto" | "acao"; name: string; }
 
 // hora local do usuário vai na query — o servidor (UTC) usa pra saudar certo

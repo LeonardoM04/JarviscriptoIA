@@ -1,34 +1,57 @@
 import { useEffect, useState } from "react";
-import {
-  loadAlerts, saveAlerts, describeAlert, ensureNotifyPermission,
-  type Alert, type AssetType, type Metric, type Op,
-} from "../alerts";
+import { fetchAlerts, createAlert, deleteAlert } from "../api";
+import { describeAlert, type Alert, type AssetType, type Metric, type Op } from "../alerts";
+import { enablePush, pushStatus, pushSupported } from "../push";
 import { timeAgo } from "../utils";
 
-const uid = () => Math.random().toString(36).slice(2, 10);
-
 export default function Alerts() {
-  const [alerts, setAlerts] = useState<Alert[]>(loadAlerts());
+  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [type, setType] = useState<AssetType>("cripto");
   const [symbol, setSymbol] = useState("BTC");
   const [metric, setMetric] = useState<Metric>("preco");
   const [op, setOp] = useState<Op>(">=");
   const [value, setValue] = useState<number>(0);
-  const [permOk, setPermOk] = useState(typeof Notification !== "undefined" && Notification.permission === "granted");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { saveAlerts(alerts); }, [alerts]);
+  const [pushOn, setPushOn] = useState(false);
+  const [pushMsg, setPushMsg] = useState<string | null>(null);
+
+  const load = () => {
+    fetchAlerts()
+      .then((r) => { setAlerts(r.alerts); setError(null); })
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+  };
+  useEffect(() => { load(); }, []);
+  useEffect(() => { pushStatus().then(setPushOn); }, []);
+
+  const activatePush = async () => {
+    setPushMsg(null);
+    const r = await enablePush();
+    setPushOn(r.ok);
+    setPushMsg(r.ok ? "Notificações ativas neste aparelho." : (r.reason || "Não foi possível ativar."));
+  };
 
   const add = async () => {
     if (!symbol.trim() || !Number.isFinite(value)) return;
-    await ensureNotifyPermission().then(setPermOk);
-    const a: Alert = {
-      id: uid(), symbol: symbol.toUpperCase().replace(/USDT$/, "").trim(), type, metric, op, value,
-      createdAt: new Date().toISOString(),
-    };
-    setAlerts((l) => [a, ...l]);
+    setSaving(true);
+    try {
+      await createAlert({ symbol, assetType: type, metric, op, value });
+      setValue(0);
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
   };
-  const remove = (id: string) => setAlerts((l) => l.filter((a) => a.id !== id));
-  const reactivate = (id: string) => setAlerts((l) => l.map((a) => (a.id === id ? { ...a, triggered: false, triggeredAt: undefined } : a)));
+
+  const remove = async (id: string) => { await deleteAlert(id); load(); };
+  const reactivate = async (a: Alert) => {
+    await deleteAlert(a.id);
+    await createAlert({ symbol: a.symbol, assetType: a.assetType, metric: a.metric, op: a.op, value: a.value });
+    load();
+  };
 
   const active = alerts.filter((a) => !a.triggered);
   const done = alerts.filter((a) => a.triggered);
@@ -38,10 +61,14 @@ export default function Alerts() {
     <div className="page alerts">
       <div className="market-head">
         <h1 className="page-title">Alertas <span className="dim sim-tag">o Jarvis te avisa quando bater</span></h1>
-        {!permOk && (
-          <button className="chip" onClick={() => ensureNotifyPermission().then(setPermOk)}>🔔 Ativar notificações</button>
+        {pushSupported() && (
+          <button className={`chip ${pushOn ? "active" : ""}`} onClick={activatePush}>
+            {pushOn ? "🔔 Notificações ativas" : "🔔 Ativar notificações neste aparelho"}
+          </button>
         )}
       </div>
+      {pushMsg && <div className={pushOn ? "warn-box" : "error-box"} style={{ marginBottom: 14 }}>{pushMsg}</div>}
+      {error && <div className="error-box">{error}</div>}
 
       <div className="panel alert-form">
         <div className="dir-toggle small">
@@ -62,7 +89,7 @@ export default function Alerts() {
           <span>{unit}</span>
           <input type="number" value={Number.isFinite(value) ? value : ""} onChange={(e) => setValue(Number(e.target.value))} />
         </div>
-        <button className="sim-open-btn alert-add" onClick={add}>+ Criar alerta</button>
+        <button className="sim-open-btn alert-add" onClick={add} disabled={saving}>{saving ? "…" : "+ Criar alerta"}</button>
       </div>
 
       {active.length > 0 && (
@@ -88,7 +115,7 @@ export default function Alerts() {
               <li key={a.id} className="done">
                 <span className="alert-dot fired" />
                 <span className="alert-desc">{describeAlert(a)} <span className="dim">· disparou {a.triggeredAt ? timeAgo(a.triggeredAt) : ""} atrás</span></span>
-                <button className="mini-btn" onClick={() => reactivate(a.id)}>reativar</button>
+                <button className="mini-btn" onClick={() => reactivate(a)}>reativar</button>
                 <button className="mini-btn ghost" onClick={() => remove(a.id)}>×</button>
               </li>
             ))}
@@ -96,11 +123,13 @@ export default function Alerts() {
         </section>
       )}
 
-      {!alerts.length && (
+      {!alerts.length && !error && (
         <p className="placeholder">Nenhum alerta ainda. Crie um acima — ex.: BTC atingir $70.000, ou NVDA cair a $150, ou RSI de SOL passar de 70.</p>
       )}
 
-      <p className="disclaimer">Os alertas são checados enquanto o app está aberto (qualquer aba). Notificação com o app fechado exigiria um app instalado.</p>
+      <p className="disclaimer">
+        Os alertas são vigiados <b>no servidor</b> e chegam como notificação mesmo com o app fechado — desde que você toque em <b>"Ativar notificações neste aparelho"</b> (no iPhone, é preciso instalar o app na tela de início primeiro).
+      </p>
     </div>
   );
 }

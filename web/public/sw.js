@@ -17,6 +17,40 @@ self.addEventListener("activate", (e) => {
   );
 });
 
+// Web Push: mostra a notificação do sistema mesmo com o app fechado
+self.addEventListener("push", (e) => {
+  let data = { title: "🔔 Alerta Quad₿lock", body: "", url: "/alertas" };
+  try { data = { ...data, ...e.data.json() }; }
+  catch { if (e.data) data.body = e.data.text(); }
+  e.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/pwa-192.png",
+      badge: "/pwa-192.png",
+      tag: "quadblock-alert",
+      data: { url: data.url || "/alertas" },
+    }).then(() =>
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => {
+        cs.forEach((c) => c.postMessage({ type: "alert-push", title: data.title, body: data.body }));
+      })
+    )
+  );
+});
+
+// clicar na notificação abre/foca o app na página de alertas
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || "/alertas";
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => {
+      for (const c of cs) {
+        if ("focus" in c) { if (c.navigate) c.navigate(url); return c.focus(); }
+      }
+      return self.clients.openWindow(url);
+    })
+  );
+});
+
 self.addEventListener("fetch", (e) => {
   const { request } = e;
   if (request.method !== "GET") return;
