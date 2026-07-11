@@ -39,7 +39,7 @@ export default function Stocks() {
       <div className="market-head">
         <h1 className="page-title">Bolsa & Ativos <span className="dim sim-tag">ações, metais, energia, índices</span></h1>
         <form className="symbol-form" onSubmit={search}>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar qualquer ativo (ex.: AAPL, KO, GC=F)" spellCheck={false} style={{ width: 260 }} />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar ativo (AAPL, GC=F)…" spellCheck={false} />
           <button type="submit">Buscar</button>
         </form>
       </div>

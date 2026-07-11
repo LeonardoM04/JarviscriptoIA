@@ -293,6 +293,17 @@ a { color: inherit; text-decoration: none; }
 .liq-wait { font-size: 12px; line-height: 1.5; }
 
 /* ---------- ações ---------- */
+.symbol-form { display: flex; gap: 8px; align-items: center; }
+.symbol-form input {
+  background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 9px 12px; outline: none; width: 250px; max-width: 100%;
+}
+.symbol-form input:focus { border-color: var(--accent); }
+.symbol-form button {
+  background: var(--accent); color: #06282e; border: none; border-radius: 8px;
+  padding: 9px 16px; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.symbol-form button:hover { filter: brightness(1.1); }
 .stock-group { margin-bottom: 14px; }
 .stock-ticker { font-weight: 700; min-width: 52px; }
 .stock-group .coin-name { color: var(--text-dim); font-weight: 400; }
