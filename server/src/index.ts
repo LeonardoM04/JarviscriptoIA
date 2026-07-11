@@ -18,6 +18,7 @@ import { repo, storageMode, type Tx } from "./store.js";
 import { buildPortfolio, analyzePortfolio } from "./portfolio.js";
 import { alertRepo, type Alert, type Metric } from "./alerts-store.js";
 import { getVapidPublicKey, checkAlerts, startAlertScheduler } from "./notifications.js";
+import { runRadar, startRadarScheduler } from "./radar.js";
 
 const app = express();
 app.use(express.json({ limit: "8mb" }));
@@ -128,6 +129,12 @@ app.post("/api/analyze-stock", handle(async (req, res) => {
     : undefined;
   const result = await analyzeStock(symbol, { chartImageBase64 });
   res.json(result);
+}));
+
+// dispara o radar do Jarvis sob demanda (teste/depuração)
+app.post("/api/radar/run", handle(async (_req, res) => {
+  const insights = await runRadar();
+  res.json({ ok: true, insights });
 }));
 
 // ---- câmbio (dólar/euro em real) — faixa do topo ----
@@ -251,8 +258,8 @@ app.all("/api/cron/check", handle(async (req, res) => {
     res.status(403).json({ error: "forbidden" });
     return;
   }
-  const fired = await checkAlerts();
-  res.json({ ok: true, fired });
+  const [fired, insights] = await Promise.all([checkAlerts(), runRadar()]);
+  res.json({ ok: true, fired, insights });
 }));
 
 // ---- Jarvis conversacional ----
@@ -294,4 +301,6 @@ app.listen(port, () => {
   console.log(`Jarvis server rodando em http://localhost:${port}`);
   // vigia os alertas a cada minuto enquanto o servidor está acordado
   startAlertScheduler();
+  // radar do Jarvis: avisos proativos (moedas/mercado/notícias) a cada 15 min
+  startRadarScheduler();
 });
