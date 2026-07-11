@@ -81,7 +81,7 @@ export function describeAlert(a: Alert): string {
 }
 
 // envia um push pra todos os aparelhos inscritos; remove inscrições mortas
-export async function pushToAll(payload: { title: string; body: string; url?: string }) {
+export async function pushToAll(payload: { title: string; body: string; url?: string; tag?: string }) {
   await getVapid();
   const subs = await alertRepo.getSubs();
   await Promise.all(subs.map(async (s) => {

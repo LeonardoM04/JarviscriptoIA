@@ -19,7 +19,7 @@ self.addEventListener("activate", (e) => {
 
 // Web Push: mostra a notificação do sistema mesmo com o app fechado
 self.addEventListener("push", (e) => {
-  let data = { title: "🔔 Alerta Quad₿lock", body: "", url: "/alertas" };
+  let data = { title: "🔔 Alerta Quad₿lock", body: "", url: "/alertas", tag: "quadblock-alert" };
   try { data = { ...data, ...e.data.json() }; }
   catch { if (e.data) data.body = e.data.text(); }
   e.waitUntil(
@@ -27,7 +27,9 @@ self.addEventListener("push", (e) => {
       body: data.body,
       icon: "/pwa-192.png",
       badge: "/pwa-192.png",
-      tag: "quadblock-alert",
+      // tag por tipo: alerta e insight do Jarvis não se sobrescrevem
+      tag: data.tag || "quadblock-alert",
+      renotify: true,
       data: { url: data.url || "/alertas" },
     }).then(() =>
       self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => {
