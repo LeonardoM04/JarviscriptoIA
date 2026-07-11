@@ -12,7 +12,7 @@ import { analyzeSymbol, analyzeStock } from "./analysis.js";
 import { getMarkets, getGlobal, getCoinDetail, symbolToId } from "./coingecko.js";
 import { getDerivatives } from "./derivatives.js";
 import { getNews } from "./news.js";
-import { getStockGroups, getStockChart, getStockNews, tickerName } from "./stocks.js";
+import { getStockGroups, getStockChart, getStockNews, tickerName, getFxRates } from "./stocks.js";
 import { chatWithJarvis, jarvisBriefing, type ChatMessage } from "./chat.js";
 import { repo, storageMode, type Tx } from "./store.js";
 import { buildPortfolio, analyzePortfolio } from "./portfolio.js";
@@ -128,6 +128,12 @@ app.post("/api/analyze-stock", handle(async (req, res) => {
     : undefined;
   const result = await analyzeStock(symbol, { chartImageBase64 });
   res.json(result);
+}));
+
+// ---- câmbio (dólar/euro em real) — faixa do topo ----
+app.get("/api/fx", handle(async (_req, res) => {
+  const rates = await getFxRates();
+  res.json({ rates });
 }));
 
 // ---- notícias ----
