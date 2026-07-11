@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Chart, { type Layers } from "./Chart";
 import ScoreBadge from "./ScoreBadge";
-import { fetchKlines, fetchStock } from "../api";
+import { fetchKlines, fetchStock, fetchTicker } from "../api";
 import type { ChatFocus } from "../api";
 import type { KlinesResponse } from "../types";
 import { changeClass, pct } from "../utils";
@@ -34,7 +34,10 @@ export default function FocusAsset({ focus }: { focus: ChatFocus }) {
           setPrice({ value: s.quote.price, changePct: s.quote.changePct, currency: s.quote.currency });
         } else {
           const sym = focus.symbol + "USDT";
-          const [k, t] = await Promise.all([fetchKlines(sym, "D", 200), fetchTickerSafe(sym)]);
+          const [k, t] = await Promise.all([
+            fetchKlines(sym, "D", 200),
+            fetchTicker(sym).then((r) => r.ticker).catch(() => null),
+          ]);
           if (!active) return;
           setData(k);
           if (t) setPrice({ value: t.lastPrice, changePct: t.price24hPcnt, currency: "USD" });
@@ -77,14 +80,4 @@ export default function FocusAsset({ focus }: { focus: ChatFocus }) {
       <Link to={route} className="focus-link">Abrir análise completa →</Link>
     </div>
   );
-}
-
-async function fetchTickerSafe(sym: string) {
-  try {
-    const { fetchTicker } = await import("../api");
-    const t = await fetchTicker(sym);
-    return t.ticker;
-  } catch {
-    return null;
-  }
 }

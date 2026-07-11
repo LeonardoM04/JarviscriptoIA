@@ -12,6 +12,7 @@ import Stock from "./pages/Stock";
 import Alerts from "./pages/Alerts";
 import Login from "./components/Login";
 import Splash from "./components/Splash";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { checkAuth } from "./api";
 
 type AuthState = "checking" | "authed" | "login";
@@ -38,21 +39,23 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="mercado" element={<Market />} />
-          <Route path="moeda/:symbol" element={<Coin />} />
-          <Route path="acoes" element={<Stocks />} />
-          <Route path="acao/:symbol" element={<Stock />} />
-          <Route path="carteira" element={<Portfolio />} />
-          <Route path="simulador" element={<Simulator />} />
-          <Route path="alertas" element={<Alerts />} />
-          <Route path="noticias" element={<News />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="mercado" element={<Market />} />
+            <Route path="moeda/:symbol" element={<Coin />} />
+            <Route path="acoes" element={<Stocks />} />
+            <Route path="acao/:symbol" element={<Stock />} />
+            <Route path="carteira" element={<Portfolio />} />
+            <Route path="simulador" element={<Simulator />} />
+            <Route path="alertas" element={<Alerts />} />
+            <Route path="noticias" element={<News />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

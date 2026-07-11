@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="7" fill="#080b11"/>
+  <g stroke="#2fd4ee" stroke-width="2" fill="none" stroke-linecap="round">
+    <path d="M6 11V6h5"/>
+    <path d="M21 6h5v5"/>
+    <path d="M26 21v5h-5"/>
+    <path d="M11 26H6v-5"/>
+  </g>
+  <text x="16" y="22.5" font-family="Georgia, 'Times New Roman', serif" font-size="17" font-weight="700" fill="#f0b90b" text-anchor="middle">₿</text>
+</svg>

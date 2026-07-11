@@ -22,7 +22,12 @@ export default function Layout() {
   const search = (e: React.FormEvent) => {
     e.preventDefault();
     const s = q.toUpperCase().trim().replace(/USDT$/, "");
-    if (s) navigate(`/moeda/${s}`);
+    if (!s) return;
+    setQ("");
+    // commodities (GC=F), índices (^VIX) e tickers com número vão pra bolsa;
+    // o resto tratamos como cripto (comportamento padrão da busca lateral).
+    if (/[=^]/.test(s)) navigate(`/acao/${encodeURIComponent(s)}`);
+    else navigate(`/moeda/${s}`);
   };
 
   return (
@@ -35,7 +40,7 @@ export default function Layout() {
           </span>
         </div>
         <form className="side-search" onSubmit={search}>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar moeda..." spellCheck={false} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar ativo (BTC, ^VIX)…" spellCheck={false} />
         </form>
         <nav className="side-nav">
           {nav.map((n) => (
@@ -45,7 +50,7 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
-        <div className="side-foot">Fase 1 · MVP</div>
+        <div className="side-foot">Quad<span className="accent">₿</span>lock Capital · dados ao vivo</div>
       </aside>
       <main className="content">
         <Outlet />

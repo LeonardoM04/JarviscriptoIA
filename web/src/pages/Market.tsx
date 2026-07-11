@@ -15,9 +15,15 @@ export default function Market() {
   const [asc, setAsc] = useState(true);
 
   useEffect(() => {
-    fetchMarkets()
-      .then((m) => setMarkets(m.markets))
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+    let active = true;
+    const load = () => {
+      fetchMarkets()
+        .then((m) => { if (active) { setMarkets(m.markets); setError(null); } })
+        .catch((e) => active && setError(e instanceof Error ? e.message : String(e)));
+    };
+    load();
+    const id = setInterval(load, 120_000); // auto-refresh a cada 2 min
+    return () => { active = false; clearInterval(id); };
   }, []);
 
   const rows = useMemo(() => {

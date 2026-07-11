@@ -158,7 +158,11 @@ app.post("/api/portfolio/tx", handle(async (req, res) => {
     quantity, price,
     person: String(b.person || "—").slice(0, 40),
     note: b.note ? String(b.note).slice(0, 200) : undefined,
-    createdAt: b.date ? new Date(b.date).toISOString() : new Date().toISOString(),
+    // data só-dia (YYYY-MM-DD) vira meio-dia UTC p/ não "voltar um dia" em fusos
+    // negativos (Brasil = UTC-3). Sem data informada, usa o agora.
+    createdAt: b.date
+      ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(String(b.date)) ? `${b.date}T12:00:00Z` : String(b.date)).toISOString()
+      : new Date().toISOString(),
   };
   await repo.add(tx);
   res.json({ ok: true, tx });

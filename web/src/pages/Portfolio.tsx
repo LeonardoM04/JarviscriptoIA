@@ -20,6 +20,7 @@ export default function Portfolio() {
   const [price, setPrice] = useState<number>(0);
   const [person, setPerson] = useState("");
   const [note, setNote] = useState("");
+  const [date, setDate] = useState("");
   const [saving, setSaving] = useState(false);
 
   const [analysis, setAnalysis] = useState<string | null>(null);
@@ -40,8 +41,8 @@ export default function Portfolio() {
     if (!symbol.trim() || quantity <= 0 || price < 0) return;
     setSaving(true);
     try {
-      await addTransaction({ symbol, assetType, side, quantity, price, person: person.trim() || "—", note: note.trim() || undefined });
-      setQuantity(0); setPrice(0); setNote("");
+      await addTransaction({ symbol, assetType, side, quantity, price, person: person.trim() || "—", note: note.trim() || undefined, date: date || undefined });
+      setQuantity(0); setPrice(0); setNote(""); setDate("");
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -153,6 +154,7 @@ export default function Portfolio() {
                 <input value={person} onChange={(e) => setPerson(e.target.value)} list="people" placeholder="quem fez" />
                 <datalist id="people">{people.map((p) => <option key={p} value={p} />)}</datalist>
               </label>
+              <label>Data (opcional — deixe vazio p/ hoje)<input type="date" value={date} onChange={(e) => setDate(e.target.value)} max={new Date().toISOString().slice(0, 10)} /></label>
               <label>Nota (opcional)<input value={note} onChange={(e) => setNote(e.target.value)} /></label>
               <button className="sim-open-btn" type="submit" disabled={saving}>{saving ? "Salvando…" : "+ Registrar"}</button>
             </form>
