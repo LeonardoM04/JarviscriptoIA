@@ -4,6 +4,7 @@ import Logo from "./Logo";
 import JarvisChat from "./JarvisChat";
 import Briefing from "./Briefing";
 import AlertsWatcher from "./AlertsWatcher";
+import FxTicker from "./FxTicker";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: "◎", end: true },
@@ -53,6 +54,7 @@ export default function Layout() {
         <div className="side-foot">Quad<span className="accent">₿</span>lock Capital · dados ao vivo</div>
       </aside>
       <main className="content">
+        <FxTicker />
         <Outlet />
       </main>
       <JarvisChat />

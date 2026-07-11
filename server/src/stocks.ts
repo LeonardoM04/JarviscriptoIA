@@ -206,6 +206,35 @@ export function getStockNews(symbol: string): Promise<StockNews[]> {
   });
 }
 
+// ---- câmbio (dólar/euro em real) para a faixa do topo ----
+export interface FxRate {
+  symbol: string; // par (ex.: USDBRL)
+  label: string; // rótulo curto (ex.: "Dólar")
+  price: number; // cotação em BRL
+  changePct: number; // variação no dia
+}
+
+const FX_PAIRS: { symbol: string; yahoo: string; label: string }[] = [
+  { symbol: "USDBRL", yahoo: "USDBRL=X", label: "Dólar" },
+  { symbol: "EURBRL", yahoo: "EURBRL=X", label: "Euro" },
+];
+
+export function getFxRates(): Promise<FxRate[]> {
+  return cached("fx:brl", 30_000, async () => {
+    const rates = await Promise.all(
+      FX_PAIRS.map(async (p) => {
+        try {
+          const c = await fetchChart(p.yahoo, "1d", "5d");
+          return { symbol: p.symbol, label: p.label, price: c.price, changePct: c.changePct } as FxRate;
+        } catch {
+          return null;
+        }
+      })
+    );
+    return rates.filter((r): r is FxRate => r !== null);
+  });
+}
+
 export function getStockGroups(): Promise<{ id: string; label: string; stocks: StockQuote[] }[]> {
   return cached("stock:groups", 60_000, async () => {
     return Promise.all(

@@ -74,6 +74,17 @@ export function fetchStocks() {
   return req(`/api/stocks`).then((r) => handle<{ groups: import("./types").StockGroupData[] }>(r));
 }
 
+export interface FxRate {
+  symbol: string;
+  label: string;
+  price: number;
+  changePct: number;
+}
+
+export function fetchFx() {
+  return req(`/api/fx`).then((r) => handle<{ rates: FxRate[] }>(r));
+}
+
 export function fetchStock(symbol: string, interval: string) {
   const params = new URLSearchParams({ interval });
   return req(`/api/stock/${encodeURIComponent(symbol)}?${params}`).then((r) => handle<import("./types").StockDetail>(r));

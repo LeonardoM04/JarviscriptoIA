@@ -74,6 +74,37 @@ a { color: inherit; text-decoration: none; }
 .side-foot { margin-top: auto; padding: 8px; color: var(--text-dim); font-size: 11px; }
 
 .content { flex: 1; overflow-y: auto; min-width: 0; }
+
+/* ---------- faixa de câmbio (dólar/euro ao vivo) ---------- */
+.fx-bar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 22px;
+  padding: 8px 26px;
+  background: rgba(8, 11, 17, 0.82);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.fx-item {
+  display: flex; align-items: baseline; gap: 8px;
+  border-radius: 8px; padding: 2px 6px;
+  transition: background 0.3s ease;
+}
+.fx-label { color: var(--text-dim); font-weight: 600; }
+.fx-price { font-weight: 700; }
+.fx-change { font-size: 12px; }
+.fx-live {
+  margin-left: auto; display: flex; align-items: center; gap: 6px;
+  color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+}
+.fx-live::before {
+  content: ""; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--up); box-shadow: 0 0 6px var(--up);
+  animation: fx-pulse 1.6s ease-in-out infinite;
+}
+.fx-flash-up { background: rgba(46, 189, 133, 0.16); }
+.fx-flash-down { background: rgba(224, 79, 95, 0.16); }
+@keyframes fx-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .page { padding: 22px 26px; }
 .page-title { font-size: 20px; font-weight: 700; margin-bottom: 18px; }
 
