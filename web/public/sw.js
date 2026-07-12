@@ -26,7 +26,9 @@ self.addEventListener("push", (e) => {
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: "/pwa-192.png",
-      badge: "/pwa-192.png",
+      // badge = ícone monocromático da barra de status (Android pinta pelo
+      // formato). Precisa ser silhueta transparente, senão vira quadrado branco.
+      badge: "/badge-96.png",
       // tag por tipo: alerta e insight do Jarvis não se sobrescrevem
       tag: data.tag || "quadblock-alert",
       renotify: true,
